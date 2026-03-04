@@ -195,6 +195,15 @@ export async function deleteVote(userId: number, exhibitorId: number) {
   await db.delete(votes).where(and(eq(votes.userId, userId), eq(votes.exhibitorId, exhibitorId)));
 }
 
+export async function deleteAllVotes(userId: number, eventId?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const condition = eventId
+    ? and(eq(votes.userId, userId), eq(votes.eventId, eventId))
+    : eq(votes.userId, userId);
+  await db.delete(votes).where(condition);
+}
+
 export async function getLastVote(userId: number, eventId: number) {
   const db = await getDb();
   if (!db) return null;

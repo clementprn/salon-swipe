@@ -107,23 +107,63 @@ export default function TeamView({ eventId, eventName, onBack }: TeamViewProps) 
     dislike: allGrouped.filter(g => g.dislikeCount > 0).length,
   };
 
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+
+  const deleteAllVotes = trpc.votes.deleteAll.useMutation({
+    onMutate: async () => {
+      await utils.votes.teamVotes.cancel();
+      await utils.votes.myVotes.cancel();
+      const previousTeamVotes = utils.votes.teamVotes.getData({ eventId });
+      // Retirer uniquement les votes de l'utilisateur courant
+      utils.votes.teamVotes.setData({ eventId }, (old) => {
+        if (!old) return old;
+        return old.filter(v => Number(v.userId) !== user?.id);
+      });
+      setShowDeleteAllConfirm(false);
+      return { previousTeamVotes };
+    },
+    onError: (_err, _variables, context: any) => {
+      if (context?.previousTeamVotes) {
+        utils.votes.teamVotes.setData({ eventId }, context.previousTeamVotes);
+      }
+    },
+    onSettled: () => {
+      utils.votes.teamVotes.invalidate();
+      utils.votes.myVotes.invalidate();
+      utils.votes.stats.invalidate();
+    },
+  });
+
   const handleExportClassement = () => {
     if (allGrouped.length === 0) return;
+    const slug = (eventName ?? "salon").replace(/\s+/g, "-").toLowerCase();
+    const date = new Date().toLocaleDateString("fr-FR");
+    const totalVotes = allGrouped.reduce((s, g) => s + g.votes.length, 0);
     const lines: string[] = [
-      `Classement équipe — ${eventName ?? "Salon"}`,
-      `Exporté le ${new Date().toLocaleDateString("fr-FR")}`,
-      "",
-      "Rang | Exposant | Stand | Tier | Score | \u2b50 SuperLikes | \u2705 Likes | \u274c Pas intéressé",
-      "---",
-      ...allGrouped.map((g, i) =>
-        `#${i + 1} | ${g.exhibitor.name} | Stand ${g.exhibitor.stand ?? "N/A"} | Tier ${g.exhibitor.tier} | ${g.score}pts | \u2b50 ${g.superlikeCount} | \u2705 ${g.likeCount} | \u274c ${g.dislikeCount}`
+      `# Classement équipe — ${eventName ?? "Salon"}`,
+      ``,
+      `**Exporté le** ${date} · **${allGrouped.length} exposants** · **${totalVotes} votes** au total`,
+      ``,
+      `## Classement général`,
+      ``,
+      `| Rang | Exposant | Stand | Tier | Score | \u2b50 Super Likes | \u2705 Likes | \u274c Pas intéressé |`,
+      `|------|----------|-------|------|-------|-------------|-------|----------------|`,
+      ...allGrouped.map((g, i) => {
+        const medal = i === 0 ? "\ud83e\udd47" : i === 1 ? "\ud83e\udd48" : i === 2 ? "\ud83e\udd49" : `#${i + 1}`;
+        return `| ${medal} | **${g.exhibitor.name}** | ${g.exhibitor.stand ?? "N/A"} | ${g.exhibitor.tier} | **${g.score}pts** | ${g.superlikeCount} | ${g.likeCount} | ${g.dislikeCount} |`;
+      }),
+      ``,
+      `## Top 5 exposants`,
+      ``,
+      ...allGrouped.slice(0, 5).map((g, i) =>
+        `${i + 1}. **${g.exhibitor.name}** (${g.score}pts) — Stand ${g.exhibitor.stand ?? "N/A"}, Tier ${g.exhibitor.tier}`
       ),
     ];
-    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8;" });
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `classement-${(eventName ?? "salon").replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.txt`;
+    a.download = `classement-${slug}-${new Date().toISOString().split("T")[0]}.md`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -140,15 +180,42 @@ export default function TeamView({ eventId, eventName, onBack }: TeamViewProps) 
           <p className="text-sm font-bold">Vue Équipe</p>
           {eventName && <p className="text-xs text-muted-foreground">{eventName}</p>}
         </div>
-        <button
-          onClick={handleExportClassement}
-          disabled={allGrouped.length === 0}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
-          title="Exporter le classement"
-        >
-          <Download className="w-4 h-4" />
-          <span className="hidden sm:inline">Export</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {showDeleteAllConfirm ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => deleteAllVotes.mutate({ eventId })}
+                disabled={deleteAllVotes.isPending}
+                className="text-xs text-red-600 font-semibold hover:text-red-700 disabled:opacity-40"
+              >
+                {deleteAllVotes.isPending ? "..." : "Confirmer"}
+              </button>
+              <span className="text-muted-foreground text-xs">/</span>
+              <button
+                onClick={() => setShowDeleteAllConfirm(false)}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Annuler
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowDeleteAllConfirm(true)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-500 transition-colors"
+              title="Supprimer tous mes votes"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={handleExportClassement}
+            disabled={allGrouped.length === 0}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+            title="Exporter le classement"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-hide">

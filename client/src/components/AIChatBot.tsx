@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Bot, Send, Loader2, Sparkles, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { X, Bot, Send, Loader2, Sparkles, ChevronDown, Download, FileText } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  isReport?: boolean; // indique que ce message est un rapport exportable
 }
 
 interface AIChatBotProps {
@@ -25,13 +25,30 @@ const SUGGESTED_PROMPTS = [
   { icon: "💡", label: "Recommandations", prompt: "Quels exposants devrais-je prioriser lors de ma visite ?" },
   { icon: "📈", label: "Statistiques", prompt: "Donne-moi un résumé statistique des votes." },
   { icon: "🔍", label: "Secteurs", prompt: "Quels secteurs d'activité ont le plus de votes positifs ?" },
+  { icon: "📝", label: "Rapport complet", prompt: "Génère un rapport complet d'analyse des votes de l'équipe pour ce salon, avec classement, tendances, consensus et recommandations. Formate-le en Markdown avec des sections claires." },
+  { icon: "🗺️", label: "Rapport visite", prompt: "Génère un rapport de préparation de visite avec les exposants prioritaires à voir en premier, organisés par hall si possible. Formate-le en Markdown." },
 ];
+
+function downloadMarkdown(content: string, filename: string) {
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Détecte si un message ressemble à un rapport Markdown (contient des headers)
+function isMarkdownReport(content: string): boolean {
+  return content.includes("##") || (content.includes("#") && content.length > 300);
+}
 
 export default function AIChatBot({ eventId, eventName, onClose }: AIChatBotProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: `Bonjour ! Je suis votre assistant d'analyse pour ${eventName ?? "ce salon"}. Je peux vous aider à explorer les tendances de vote, identifier les exposants prioritaires, ou analyser les préférences de votre équipe. Que souhaitez-vous savoir ?`,
+      content: `Bonjour ! Je suis votre assistant d'analyse pour ${eventName ?? "ce salon"}. Je peux analyser les votes, identifier les tendances, et **générer des rapports exportables en Markdown**. Utilisez les suggestions ci-dessous ou posez votre question.`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -40,7 +57,12 @@ export default function AIChatBot({ eventId, eventName, onClose }: AIChatBotProp
 
   const chat = trpc.ai.chat.useMutation({
     onSuccess: (data) => {
-      setMessages(prev => [...prev, { role: "assistant" as const, content: String(data.reply) }]);
+      const reply = String(data.reply);
+      setMessages(prev => [...prev, {
+        role: "assistant" as const,
+        content: reply,
+        isReport: isMarkdownReport(reply),
+      }]);
     },
     onError: (e) => {
       setMessages(prev => [...prev, { role: "assistant", content: `Désolé, une erreur s'est produite : ${e.message}` }]);
@@ -70,6 +92,16 @@ export default function AIChatBot({ eventId, eventName, onClose }: AIChatBotProp
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleExportMessage = (content: string, index: number) => {
+    const slug = (eventName ?? "salon").replace(/\s+/g, "-").toLowerCase();
+    const date = new Date().toISOString().split("T")[0];
+    // Ajouter un header si pas déjà présent
+    const fullContent = content.startsWith("#")
+      ? content
+      : `# Rapport IA — ${eventName ?? "Salon"}\n\n*Généré le ${new Date().toLocaleDateString("fr-FR")}*\n\n${content}`;
+    downloadMarkdown(fullContent, `rapport-ia-${slug}-${date}-${index}.md`);
   };
 
   return (
@@ -105,7 +137,7 @@ export default function AIChatBot({ eventId, eventName, onClose }: AIChatBotProp
                 Assistant IA
                 <Sparkles className="w-3.5 h-3.5 text-primary" />
               </p>
-              <p className="text-xs text-muted-foreground">Analyse des votes</p>
+              <p className="text-xs text-muted-foreground">Analyse · Rapports exportables</p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
@@ -127,14 +159,26 @@ export default function AIChatBot({ eventId, eventName, onClose }: AIChatBotProp
                   <Bot className="w-3.5 h-3.5 text-primary" />
                 </div>
               )}
-              <div
-                className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-br-sm"
-                    : "bg-muted text-foreground rounded-bl-sm"
-                }`}
-              >
-                {msg.content}
+              <div className="max-w-[80%] flex flex-col gap-1.5">
+                <div
+                  className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-muted text-foreground rounded-bl-sm"
+                  }`}
+                >
+                  {msg.content}
+                </div>
+                {/* Bouton export si c'est un rapport */}
+                {msg.role === "assistant" && msg.isReport && (
+                  <button
+                    onClick={() => handleExportMessage(msg.content, i)}
+                    className="flex items-center gap-1.5 self-start px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <Download className="w-3 h-3" />
+                    Exporter en Markdown
+                  </button>
+                )}
               </div>
             </motion.div>
           ))}
@@ -165,7 +209,10 @@ export default function AIChatBot({ eventId, eventName, onClose }: AIChatBotProp
               className="flex-shrink-0 px-4 pb-2"
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-muted-foreground">Suggestions</p>
+                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  Suggestions & rapports
+                </p>
                 <button onClick={() => setShowSuggestions(false)} className="text-muted-foreground">
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
@@ -191,7 +238,7 @@ export default function AIChatBot({ eventId, eventName, onClose }: AIChatBotProp
           <div className="flex items-center gap-2 bg-muted rounded-2xl px-3 py-2">
             <input
               type="text"
-              placeholder="Posez votre question..."
+              placeholder="Posez votre question ou demandez un rapport..."
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}

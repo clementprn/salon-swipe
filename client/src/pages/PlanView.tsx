@@ -103,6 +103,29 @@ export default function PlanView({ eventId, eventName, onBack }: PlanViewProps) 
     { enabled: isAuthenticated }
   );
 
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+
+  const deleteAllVotes = trpc.votes.deleteAll.useMutation({
+    onMutate: async () => {
+      await utils.votes.myVotes.cancel();
+      const previousVotes = utils.votes.myVotes.getData({ eventId });
+      utils.votes.myVotes.setData({ eventId }, () => []);
+      setSelected(new Set());
+      setShowPath(false);
+      setShowDeleteAllConfirm(false);
+      return { previousVotes };
+    },
+    onError: (_err, _variables, context: any) => {
+      if (context?.previousVotes) {
+        utils.votes.myVotes.setData({ eventId }, context.previousVotes);
+      }
+    },
+    onSettled: () => {
+      utils.votes.myVotes.invalidate();
+      utils.votes.stats.invalidate();
+    },
+  });
+
   const deleteVote = trpc.votes.delete.useMutation({
     onMutate: async (variables) => {
       // Annuler les refetch en cours
@@ -183,22 +206,34 @@ export default function PlanView({ eventId, eventName, onBack }: PlanViewProps) 
   const handleExportPlan = () => {
     const path = showPath ? optimizedPath : selectedList;
     if (path.length === 0) return;
+    const slug = (eventName ?? "salon").replace(/\s+/g, "-").toLowerCase();
+    const date = new Date().toLocaleDateString("fr-FR");
     const lines: string[] = [
-      `Plan de visite — ${eventName ?? "Salon"}`,
-      `Exporté le ${new Date().toLocaleDateString("fr-FR")}`,
-      `${path.length} stand${path.length > 1 ? "s" : ""} · ${estimateTime(path.length)} estimé`,
-      "",
-      ...(showPath ? path : path).map((e, i) =>
-        `${i + 1}. ${e.name} — Stand ${e.stand ?? "N/A"} (Tier ${e.tier})${
-          e.shortDescription ? " — " + e.shortDescription.slice(0, 80) : ""
-        }`
+      `# Plan de visite — ${eventName ?? "Salon"}`,
+      ``,
+      `**Exporté le** ${date} · **${path.length} stand${path.length > 1 ? "s" : ""}** · ${estimateTime(path.length)} estimé`,
+      ``,
+      `## Itinéraire`,
+      ``,
+      `| Étape | Exposant | Stand | Tier | Type de vote |`,
+      `|-------|----------|-------|------|--------------|`,
+      ...path.map((e, i) =>
+        `| ${i + 1} | **${e.name}** | ${e.stand ?? "N/A"} | ${e.tier} | ${(e as any).voteType === "superlike" ? "⭐ Super Like" : "✅ Like"} |`
       ),
+      ``,
+      ...(path.some(e => (e as any).shortDescription) ? [
+        `## Détails`,
+        ``,
+        ...path.filter(e => (e as any).shortDescription).map((e, i) =>
+          `### ${i + 1}. ${e.name}\n> ${(e as any).shortDescription?.slice(0, 120)}\n`
+        ),
+      ] : []),
     ];
-    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8;" });
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `plan-visite-${(eventName ?? "salon").replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.txt`;
+    a.download = `plan-visite-${slug}-${new Date().toISOString().split("T")[0]}.md`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -228,7 +263,36 @@ export default function PlanView({ eventId, eventName, onBack }: PlanViewProps) 
           </p>
           {eventName && <p className="text-xs text-muted-foreground">{eventName}</p>}
         </div>
-        <div className="w-16" />
+        {favorites.length > 0 ? (
+          showDeleteAllConfirm ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => deleteAllVotes.mutate({ eventId })}
+                disabled={deleteAllVotes.isPending}
+                className="text-xs text-red-600 font-semibold hover:text-red-700 disabled:opacity-40"
+              >
+                {deleteAllVotes.isPending ? "..." : "Confirmer"}
+              </button>
+              <span className="text-muted-foreground text-xs">/</span>
+              <button
+                onClick={() => setShowDeleteAllConfirm(false)}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Annuler
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowDeleteAllConfirm(true)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-500 transition-colors"
+              title="Supprimer tous mes votes"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )
+        ) : (
+          <div className="w-8" />
+        )}
       </div>
 
       {isLoading ? (

@@ -7,7 +7,7 @@ import {
   getEvents, getEventBySlug,
   getExhibitorsByEvent, getNextExhibitorToSwipe, getSwipeQueue,
   getExhibitorById, countRemainingExhibitors,
-  castVote, deleteVote, getLastVote, getMyVotes, getTeamVotes, getVoteStats,
+  castVote, deleteVote, deleteAllVotes, getLastVote, getMyVotes, getTeamVotes, getVoteStats,
   getTeams, createTeam, joinTeam, getMyTeam, createInviteToken, resolveInviteToken,
   getVoteStatsForAI,
 } from "./db";
@@ -92,6 +92,13 @@ export const appRouter = router({
       .input(z.object({ exhibitorId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         await deleteVote(ctx.user.id, input.exhibitorId);
+        return { success: true };
+      }),
+
+    deleteAll: protectedProcedure
+      .input(z.object({ eventId: z.number().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        await deleteAllVotes(ctx.user.id, input.eventId);
         return { success: true };
       }),
 

@@ -75,3 +75,8 @@
 - [x] Fix suppression vote : mise à jour optimiste du cache (plus de réapparition) + fix comparaison userId
 - [x] Export classement dans vue équipe (fichier .txt avec rang, score, votes)
 - [x] Export plan de visite dans vue planification (fichier .txt avec ordre optimisé)
+
+## Nouvelles fonctionnalités (v1.4)
+- [x] Bouton "Tout supprimer mes votes" dans PlanView et TeamView (avec confirmation)
+- [x] Exports en Markdown (.md) avec tableaux et sections structurées
+- [x] Chatbot : génération de rapports exportables en Markdown + 2 nouvelles invites rapport
