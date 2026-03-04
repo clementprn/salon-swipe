@@ -2,13 +2,14 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Loader2, Users, Zap, LogOut, User, BarChart3 } from "lucide-react";
+import { Loader2, Users, Zap, LogOut, User, BarChart3, Navigation } from "lucide-react";
 import { motion } from "framer-motion";
 import { getLoginUrl } from "@/const";
 import SwipePage from "./Swipe";
 import TeamView from "./TeamView";
+import PlanView from "./PlanView";
 
-type View = "home" | "swipe" | "team";
+type View = "home" | "swipe" | "team" | "plan";
 
 interface SelectedEvent {
   id: number;
@@ -56,6 +57,19 @@ export default function Home() {
     return (
       <div className="h-screen flex flex-col max-w-sm mx-auto">
         <TeamView
+          eventId={selectedEvent?.id}
+          eventName={selectedEvent?.name}
+          onBack={() => setView("home")}
+        />
+      </div>
+    );
+  }
+
+  // Plan view
+  if (view === "plan") {
+    return (
+      <div className="h-screen flex flex-col max-w-sm mx-auto">
+        <PlanView
           eventId={selectedEvent?.id}
           eventName={selectedEvent?.name}
           onBack={() => setView("home")}
@@ -183,6 +197,7 @@ export default function Home() {
               Actions — {selectedEvent.name.split(" ")[0]}
             </h2>
 
+            {/* Swipe */}
             <button
               onClick={() => isAuthenticated ? setView("swipe") : window.location.href = getLoginUrl()}
               className="w-full flex items-center gap-4 p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg active:scale-98 transition-transform"
@@ -197,6 +212,7 @@ export default function Home() {
               <span className="ml-auto text-xl">→</span>
             </button>
 
+            {/* Vue équipe */}
             <button
               onClick={() => isAuthenticated ? setView("team") : window.location.href = getLoginUrl()}
               className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all active:scale-98"
@@ -206,7 +222,22 @@ export default function Home() {
               </div>
               <div className="text-left">
                 <p className="font-bold text-sm text-foreground">Vue équipe</p>
-                <p className="text-xs text-muted-foreground">Tous les votes de l'équipe</p>
+                <p className="text-xs text-muted-foreground">Classement et votes de l'équipe</p>
+              </div>
+              <span className="ml-auto text-muted-foreground">→</span>
+            </button>
+
+            {/* Planification */}
+            <button
+              onClick={() => isAuthenticated ? setView("plan") : window.location.href = getLoginUrl()}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all active:scale-98"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+                <Navigation className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-sm text-foreground">Planifier ma visite</p>
+                <p className="text-xs text-muted-foreground">Chemin optimisé par stands</p>
               </div>
               <span className="ml-auto text-muted-foreground">→</span>
             </button>

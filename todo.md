@@ -37,3 +37,18 @@
 ## Phase 4 : Tests & Livraison
 - [x] Tests vitest backend (21 tests passent)
 - [x] Checkpoint final
+
+## Bugs corrigés (signalés par l'utilisateur)
+- [x] Chevauchement des tags thématiques sur la description dans la carte swipe
+- [x] Score "97 étoiles" incompréhensible — renommé "Score Sodexo /100"
+- [x] Compteur restant affichait "tout vu" à tort — corrigé avec source de vérité serveur
+- [x] Vue équipe : classement pondéré ajouté (⭐×3 + ✅×1 − ❌×1) avec médailles
+
+## Nouvelle fonctionnalité : Planification de visite
+- [x] Page Planification accessible depuis l'accueil
+- [x] Afficher les exposants likés/superlikés (sélectionnables)
+- [x] Algorithme d'optimisation du chemin de visite par numéro de stand (serpentin par hall)
+- [x] Vue liste ordonnée avec numéros de passage et stands
+- [x] Bouton "Tout sélectionner / désélectionner"
+- [x] Affichage du temps de visite estimé (~15 min/stand)
+- [x] Bouton "Modifier la sélection" pour revenir en arrière

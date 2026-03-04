@@ -1,7 +1,6 @@
 import { motion, useMotionValue, useTransform, useAnimation, PanInfo } from "framer-motion";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { ExternalLink, Globe, MapPin, Star, X, Heart, ChevronDown, ChevronUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export type Exhibitor = {
@@ -29,11 +28,11 @@ interface SwipeCardProps {
   stackIndex: number;
 }
 
-const TIER_LABELS: Record<string, string> = {
-  A: "⭐ Incontournable",
-  B: "✅ Intéressant",
-  C: "👀 À surveiller",
-  D: "⬇️ Faible intérêt",
+const TIER_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
+  A: { label: "⭐ Incontournable", bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-300" },
+  B: { label: "✅ Intéressant",    bg: "bg-green-50",  text: "text-green-800",  border: "border-green-300" },
+  C: { label: "👀 À surveiller",   bg: "bg-blue-50",   text: "text-blue-800",   border: "border-blue-300" },
+  D: { label: "⬇️ Faible intérêt", bg: "bg-gray-50",   text: "text-gray-600",   border: "border-gray-300" },
 };
 
 const SWIPE_THRESHOLD = 80;
@@ -55,19 +54,23 @@ export default function SwipeCard({ exhibitor, onVote, onOpenSite, isTop, stackI
     catch { return exhibitor.thematicTags ? [exhibitor.thematicTags] : []; }
   })();
 
-  const handleDragEnd = async (_: any, info: PanInfo) => {
+  const tier = TIER_CONFIG[exhibitor.tier] ?? TIER_CONFIG.C;
+  const description = exhibitor.description || exhibitor.shortDescription || "";
+  const isLongDesc = description.length > 180;
+
+  const handleDragEnd = async (_: unknown, info: PanInfo) => {
     const { offset, velocity } = info;
     const swipeX = Math.abs(offset.x) > SWIPE_THRESHOLD || Math.abs(velocity.x) > 400;
     const swipeUp = offset.y < -SWIPE_THRESHOLD || velocity.y < -400;
 
     if (swipeUp) {
-      await controls.start({ y: -600, opacity: 0, transition: { duration: 0.3 } });
+      await controls.start({ y: -700, opacity: 0, transition: { duration: 0.3 } });
       onVote("superlike");
     } else if (swipeX && offset.x > 0) {
-      await controls.start({ x: 600, opacity: 0, rotate: 20, transition: { duration: 0.3 } });
+      await controls.start({ x: 700, opacity: 0, rotate: 20, transition: { duration: 0.3 } });
       onVote("like");
     } else if (swipeX && offset.x < 0) {
-      await controls.start({ x: -600, opacity: 0, rotate: -20, transition: { duration: 0.3 } });
+      await controls.start({ x: -700, opacity: 0, rotate: -20, transition: { duration: 0.3 } });
       onVote("dislike");
     } else {
       controls.start({ x: 0, y: 0, rotate: 0, transition: { type: "spring", stiffness: 300, damping: 20 } });
@@ -78,11 +81,11 @@ export default function SwipeCard({ exhibitor, onVote, onOpenSite, isTop, stackI
     setVoteIndicator(type);
     await new Promise(r => setTimeout(r, 150));
     if (type === "like") {
-      await controls.start({ x: 600, opacity: 0, rotate: 20, transition: { duration: 0.35 } });
+      await controls.start({ x: 700, opacity: 0, rotate: 20, transition: { duration: 0.35 } });
     } else if (type === "dislike") {
-      await controls.start({ x: -600, opacity: 0, rotate: -20, transition: { duration: 0.35 } });
+      await controls.start({ x: -700, opacity: 0, rotate: -20, transition: { duration: 0.35 } });
     } else {
-      await controls.start({ y: -600, opacity: 0, transition: { duration: 0.35 } });
+      await controls.start({ y: -700, opacity: 0, transition: { duration: 0.35 } });
     }
     onVote(type);
   };
@@ -109,93 +112,98 @@ export default function SwipeCard({ exhibitor, onVote, onOpenSite, isTop, stackI
       animate={controls}
       whileDrag={{ scale: 1.02 }}
     >
-      {/* Vote indicators */}
+      {/* Vote overlays */}
       <motion.div
-        className="absolute top-6 left-6 z-30 bg-green-500 text-white font-black text-2xl px-4 py-2 rounded-xl rotate-[-15deg] border-4 border-white shadow-lg"
+        className="absolute top-6 left-5 z-30 bg-green-500 text-white font-black text-xl px-4 py-2 rounded-xl rotate-[-15deg] border-4 border-white shadow-lg pointer-events-none"
         style={{ opacity: likeOpacity }}
       >
         LIKE ✅
       </motion.div>
       <motion.div
-        className="absolute top-6 right-6 z-30 bg-red-500 text-white font-black text-2xl px-4 py-2 rounded-xl rotate-[15deg] border-4 border-white shadow-lg"
+        className="absolute top-6 right-5 z-30 bg-red-500 text-white font-black text-xl px-4 py-2 rounded-xl rotate-[15deg] border-4 border-white shadow-lg pointer-events-none"
         style={{ opacity: dislikeOpacity }}
       >
         NOPE ❌
       </motion.div>
       <motion.div
-        className="absolute top-6 left-1/2 -translate-x-1/2 z-30 bg-blue-500 text-white font-black text-2xl px-4 py-2 rounded-xl border-4 border-white shadow-lg"
+        className="absolute top-6 left-1/2 -translate-x-1/2 z-30 bg-blue-500 text-white font-black text-xl px-4 py-2 rounded-xl border-4 border-white shadow-lg pointer-events-none"
         style={{ opacity: superlikeOpacity }}
       >
         SUPER ⭐
       </motion.div>
 
-      {/* Card */}
+      {/* Card container */}
       <div
-        className={`h-full rounded-2xl bg-card border-2 shadow-xl overflow-hidden flex flex-col ${
-          voteIndicator === "like" ? "vote-like-overlay" :
-          voteIndicator === "superlike" ? "vote-superlike-overlay" :
-          voteIndicator === "dislike" ? "vote-dislike-overlay" : "border-border"
+        className={`h-full rounded-2xl bg-card shadow-xl overflow-hidden flex flex-col border-2 ${
+          voteIndicator === "like" ? "border-green-400" :
+          voteIndicator === "superlike" ? "border-blue-400" :
+          voteIndicator === "dislike" ? "border-red-400" : "border-border"
         }`}
       >
-        {/* Header gradient */}
-        <div className="relative h-32 flex-shrink-0 bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 flex items-center justify-center">
+        {/* ── HEADER (fixed height) ── */}
+        <div className="flex-shrink-0 relative bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 px-4 pt-4 pb-3">
           {/* Tier badge */}
-          <div className={`absolute top-3 left-3 tier-${exhibitor.tier.toLowerCase()} px-2.5 py-1 rounded-lg text-xs font-bold`}>
-            {TIER_LABELS[exhibitor.tier]}
+          <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border ${tier.bg} ${tier.text} ${tier.border}`}>
+            {tier.label}
           </div>
 
-          {/* Score */}
-          <div className="absolute top-3 right-3 flex items-center gap-1 bg-background/80 backdrop-blur-sm px-2.5 py-1 rounded-lg">
-            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-            <span className="text-xs font-bold text-foreground">{exhibitor.sodexoScore ?? 0}</span>
-          </div>
+          {/* Company name + stand */}
+          <div className="mt-2 flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-black text-foreground leading-tight truncate">{exhibitor.name}</h2>
+              {exhibitor.stand && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground">Stand {exhibitor.stand}</span>
+                </div>
+              )}
+            </div>
 
-          {/* Company initial */}
-          <div className="w-20 h-20 rounded-2xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center shadow-inner">
-            <span className="text-3xl font-black text-primary">
-              {exhibitor.name.charAt(0).toUpperCase()}
-            </span>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide p-4 flex flex-col gap-3">
-          {/* Name + stand */}
-          <div>
-            <h2 className="text-xl font-black text-foreground leading-tight">{exhibitor.name}</h2>
-            {exhibitor.stand && (
-              <div className="flex items-center gap-1 mt-1">
-                <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground font-medium">Stand {exhibitor.stand}</span>
+            {/* Score Sodexo */}
+            {exhibitor.sodexoScore != null && (
+              <div className="flex-shrink-0 flex flex-col items-center bg-background/80 backdrop-blur-sm px-2.5 py-1.5 rounded-xl border border-border">
+                <span className="text-base font-black text-foreground leading-none">{exhibitor.sodexoScore}</span>
+                <span className="text-[10px] text-muted-foreground font-medium leading-none mt-0.5">/ 100</span>
+                <span className="text-[9px] text-amber-600 font-semibold uppercase tracking-wide mt-0.5">Sodexo</span>
               </div>
             )}
           </div>
 
-          {/* Thematic tags */}
+          {/* Thematic tags — fixed row, no wrap to avoid overflow */}
           {tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="mt-2 flex gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
               {tags.map((tag, i) => (
-                <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium border border-primary/20">
+                <span
+                  key={i}
+                  className="flex-shrink-0 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium border border-primary/20 whitespace-nowrap"
+                >
                   {tag}
                 </span>
               ))}
             </div>
           )}
+        </div>
 
+        {/* ── BODY (scrollable) ── */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-4 py-3 flex flex-col gap-3 min-h-0">
           {/* Description */}
-          <div className="flex-1">
-            <p className={`text-sm text-foreground/80 leading-relaxed ${!expanded ? "line-clamp-4" : ""}`}>
-              {exhibitor.description || exhibitor.shortDescription || "Aucune description disponible."}
-            </p>
-            {(exhibitor.description?.length ?? 0) > 200 && (
-              <button
-                className="mt-1 text-xs text-primary font-medium flex items-center gap-0.5"
-                onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
-              >
-                {expanded ? <><ChevronUp className="w-3 h-3" /> Moins</> : <><ChevronDown className="w-3 h-3" /> Plus</>}
-              </button>
-            )}
-          </div>
+          {description && (
+            <div>
+              <p className={`text-sm text-foreground/80 leading-relaxed ${!expanded && isLongDesc ? "line-clamp-4" : ""}`}>
+                {description}
+              </p>
+              {isLongDesc && (
+                <button
+                  className="mt-1 text-xs text-primary font-semibold flex items-center gap-0.5"
+                  onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+                >
+                  {expanded
+                    ? <><ChevronUp className="w-3 h-3" /> Réduire</>
+                    : <><ChevronDown className="w-3 h-3" /> Lire la suite</>}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Sodexo reason */}
           {exhibitor.sodexoReason && (
@@ -220,12 +228,12 @@ export default function SwipeCard({ exhibitor, onVote, onOpenSite, isTop, stackI
           )}
         </div>
 
-        {/* Vote buttons */}
-        <div className="flex-shrink-0 p-4 pt-2 border-t border-border bg-card">
+        {/* ── VOTE BUTTONS (fixed footer) ── */}
+        <div className="flex-shrink-0 px-4 py-3 border-t border-border bg-card/95">
           <div className="flex items-center justify-between gap-3">
             {/* Dislike */}
             <button
-              className="w-14 h-14 rounded-full bg-red-50 border-2 border-red-200 flex items-center justify-center shadow-md active:scale-95 transition-transform hover:bg-red-100 hover:border-red-300"
+              className="w-14 h-14 rounded-full bg-red-50 border-2 border-red-200 flex items-center justify-center shadow-md active:scale-90 transition-transform hover:bg-red-100 hover:border-red-300"
               onClick={() => handleButtonVote("dislike")}
             >
               <X className="w-6 h-6 text-red-500" strokeWidth={3} />
@@ -233,7 +241,7 @@ export default function SwipeCard({ exhibitor, onVote, onOpenSite, isTop, stackI
 
             {/* Super Like */}
             <button
-              className="w-12 h-12 rounded-full bg-blue-50 border-2 border-blue-200 flex items-center justify-center shadow-md active:scale-95 transition-transform hover:bg-blue-100 hover:border-blue-300"
+              className="w-12 h-12 rounded-full bg-blue-50 border-2 border-blue-200 flex items-center justify-center shadow-md active:scale-90 transition-transform hover:bg-blue-100 hover:border-blue-300"
               onClick={() => handleButtonVote("superlike")}
             >
               <Star className="w-5 h-5 text-blue-500 fill-blue-500" />
@@ -241,7 +249,7 @@ export default function SwipeCard({ exhibitor, onVote, onOpenSite, isTop, stackI
 
             {/* Like */}
             <button
-              className="w-14 h-14 rounded-full bg-green-50 border-2 border-green-200 flex items-center justify-center shadow-md active:scale-95 transition-transform hover:bg-green-100 hover:border-green-300"
+              className="w-14 h-14 rounded-full bg-green-50 border-2 border-green-200 flex items-center justify-center shadow-md active:scale-90 transition-transform hover:bg-green-100 hover:border-green-300"
               onClick={() => handleButtonVote("like")}
             >
               <Heart className="w-6 h-6 text-green-500 fill-green-500" />

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import SwipeCard, { Exhibitor } from "@/components/SwipeCard";
@@ -18,28 +18,45 @@ interface SwipePageProps {
 export default function SwipePage({ eventId, eventName, eventColor, onBack }: SwipePageProps) {
   const { user, isAuthenticated } = useAuth();
   const [localQueue, setLocalQueue] = useState<Exhibitor[]>([]);
+  const [totalRemaining, setTotalRemaining] = useState<number | null>(null);
   const [lastVoted, setLastVoted] = useState<{ exhibitor: Exhibitor; voteType: string } | null>(null);
   const [siteUrl, setSiteUrl] = useState<string | null>(null);
   const [isDone, setIsDone] = useState(false);
+  const initializedRef = useRef(false);
   const utils = trpc.useUtils();
 
   const { data, isLoading, refetch } = trpc.exhibitors.swipeQueue.useQuery(
-    { eventId, batchSize: 8 },
-    { enabled: isAuthenticated }
+    { eventId, batchSize: 10 },
+    { enabled: isAuthenticated, staleTime: 0 }
   );
 
-  // Sync queue when data arrives
+  // Initialiser la queue et le compteur total depuis le serveur
   useEffect(() => {
-    if (data?.queue && data.queue.length > 0) {
+    if (!data) return;
+
+    if (data.queue.length === 0 && initializedRef.current) {
+      // On a déjà initialisé et le serveur dit qu'il n'y a plus rien
+      if (localQueue.length === 0) setIsDone(true);
+      return;
+    }
+
+    if (data.queue.length > 0) {
       setLocalQueue(prev => {
-        // Merge: add new items not already in local queue
+        if (!initializedRef.current) {
+          // Première initialisation
+          initializedRef.current = true;
+          setTotalRemaining(data.remaining);
+          return data.queue as Exhibitor[];
+        }
+        // Merge : ajouter les nouveaux items non présents
         const existingIds = new Set(prev.map(e => e.id));
         const newItems = (data.queue as Exhibitor[]).filter(e => !existingIds.has(e.id));
-        return prev.length === 0 ? (data.queue as Exhibitor[]) : [...prev, ...newItems];
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
       });
+      if (!initializedRef.current) {
+        setTotalRemaining(data.remaining);
+      }
       setIsDone(false);
-    } else if (data && data.queue.length === 0) {
-      setIsDone(true);
     }
   }, [data]);
 
@@ -50,7 +67,6 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
   const undoVote = trpc.votes.undo.useMutation({
     onSuccess: () => {
       toast.success("Vote annulé !");
-      utils.exhibitors.swipeQueue.invalidate();
       utils.votes.myVotes.invalidate();
       utils.votes.stats.invalidate();
     },
@@ -61,21 +77,29 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     const current = localQueue[0];
     setLastVoted({ exhibitor: current, voteType });
 
-    // Optimistic update
-    setLocalQueue(prev => prev.slice(1));
+    // Optimistic update : retirer de la queue locale
+    setLocalQueue(prev => {
+      const next = prev.slice(1);
+      if (next.length === 0) setIsDone(true);
+      return next;
+    });
+    setTotalRemaining(prev => (prev !== null ? Math.max(0, prev - 1) : null));
 
     try {
       await castVote.mutateAsync({ exhibitorId: current.id, eventId, voteType });
       utils.votes.myVotes.invalidate();
       utils.votes.stats.invalidate();
 
-      // Refetch si la queue est presque vide
-      if (localQueue.length <= 2) {
-        refetch();
-      }
+      // Refetch si la queue locale est presque vide
+      setLocalQueue(prev => {
+        if (prev.length <= 3) refetch();
+        return prev;
+      });
     } catch {
       // Rollback
       setLocalQueue(prev => [current, ...prev]);
+      setTotalRemaining(prev => (prev !== null ? prev + 1 : null));
+      setIsDone(false);
     }
   }, [localQueue, eventId, castVote, utils, refetch]);
 
@@ -84,6 +108,8 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     try {
       await undoVote.mutateAsync({ exhibitorId: lastVoted.exhibitor.id });
       setLocalQueue(prev => [lastVoted.exhibitor, ...prev]);
+      setTotalRemaining(prev => (prev !== null ? prev + 1 : null));
+      setIsDone(false);
       setLastVoted(null);
     } catch {
       toast.error("Impossible d'annuler");
@@ -101,7 +127,7 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     );
   }
 
-  if (isLoading) {
+  if (isLoading && !initializedRef.current) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -109,7 +135,7 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     );
   }
 
-  if (isDone || localQueue.length === 0) {
+  if (isDone && localQueue.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }}>
@@ -122,7 +148,8 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     );
   }
 
-  const remaining = data?.remaining ?? localQueue.length;
+  // Compteur : utiliser totalRemaining (du serveur) ou localQueue.length comme fallback
+  const displayRemaining = totalRemaining !== null ? totalRemaining : localQueue.length;
 
   return (
     <div className="flex flex-col h-full">
@@ -133,8 +160,10 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
           Retour
         </button>
         <div className="text-center">
-          <p className="text-xs font-semibold text-muted-foreground">{eventName}</p>
-          <p className="text-xs text-muted-foreground">{remaining} restant{remaining > 1 ? "s" : ""}</p>
+          <p className="text-xs font-semibold text-muted-foreground truncate max-w-[140px]">{eventName}</p>
+          <p className="text-xs text-muted-foreground font-medium">
+            {displayRemaining} exposant{displayRemaining > 1 ? "s" : ""} restant{displayRemaining > 1 ? "s" : ""}
+          </p>
         </div>
         <button
           onClick={handleUndo}
@@ -147,15 +176,23 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
       </div>
 
       {/* Progress bar */}
-      <div className="flex-shrink-0 h-1 bg-muted">
-        <div
-          className="h-full bg-primary transition-all duration-500"
-          style={{ width: `${Math.max(0, 100 - (remaining / Math.max(remaining + (data?.queue?.length ?? 0), 1)) * 100)}%` }}
-        />
-      </div>
+      {totalRemaining !== null && data?.remaining !== undefined && (
+        <div className="flex-shrink-0 h-1 bg-muted">
+          <motion.div
+            className="h-full bg-primary"
+            initial={{ width: 0 }}
+            animate={{
+              width: `${Math.max(2, Math.round(
+                ((data.remaining - totalRemaining) / Math.max(data.remaining, 1)) * 100
+              ))}%`
+            }}
+            transition={{ duration: 0.4 }}
+          />
+        </div>
+      )}
 
       {/* Card stack */}
-      <div className="flex-1 relative p-4 pb-2">
+      <div className="flex-1 relative p-4 pb-2 min-h-0">
         <div className="relative h-full max-w-sm mx-auto">
           <AnimatePresence>
             {localQueue.slice(0, 3).map((exhibitor, index) => (
