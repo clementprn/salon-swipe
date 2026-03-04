@@ -1,17 +1,15 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import {
+  int,
+  mysqlEnum,
+  mysqlTable,
+  text,
+  timestamp,
+  varchar,
+  boolean,
+} from "drizzle-orm/mysql-core";
 
-/**
- * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
- */
 export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
   id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -25,4 +23,57 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+// ── Événements (salons) ──────────────────────────────────────
+export const events = mysqlTable("events", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  location: varchar("location", { length: 255 }),
+  startDate: varchar("startDate", { length: 50 }),
+  endDate: varchar("endDate", { length: 50 }),
+  description: text("description"),
+  color: varchar("color", { length: 20 }).default("#2C3E7A"),
+  logoUrl: varchar("logoUrl", { length: 500 }),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Event = typeof events.$inferSelect;
+export type InsertEvent = typeof events.$inferInsert;
+
+// ── Exposants ────────────────────────────────────────────────
+export const exhibitors = mysqlTable("exhibitors", {
+  id: int("id").autoincrement().primaryKey(),
+  eventId: int("eventId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  stand: varchar("stand", { length: 50 }),
+  website: varchar("website", { length: 500 }),
+  description: text("description"),
+  shortDescription: varchar("shortDescription", { length: 300 }),
+  sector: varchar("sector", { length: 255 }),
+  themes: text("themes").default("[]"),  // stored as JSON string
+  tier: mysqlEnum("tier", ["A", "B", "C", "D"]).default("C").notNull(),
+  sodexoScore: int("sodexoScore").default(0),
+  sodexoReason: text("sodexoReason"),
+  thematicTags: text("thematicTags").default("[]"),  // stored as JSON string
+  logoUrl: varchar("logoUrl", { length: 500 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Exhibitor = typeof exhibitors.$inferSelect;
+export type InsertExhibitor = typeof exhibitors.$inferInsert;
+
+// ── Votes ────────────────────────────────────────────────────
+export const votes = mysqlTable("votes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  exhibitorId: int("exhibitorId").notNull(),
+  eventId: int("eventId").notNull(),
+  voteType: mysqlEnum("voteType", ["like", "superlike", "dislike"]).notNull(),
+  note: text("note"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Vote = typeof votes.$inferSelect;
+export type InsertVote = typeof votes.$inferInsert;

@@ -43,6 +43,11 @@
 }
 
 :root {
+  /* SalonSwipe brand */
+  --like-color: oklch(0.55 0.22 145);
+  --superlike-color: oklch(0.6 0.22 265);
+  --dislike-color: oklch(0.55 0.22 25);
+
   --primary: var(--color-blue-700);
   --primary-foreground: var(--color-blue-50);
   --sidebar-primary: var(--color-blue-600);
@@ -119,6 +124,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -175,3 +183,41 @@
     }
   }
 }
+/* ═══════════════════════════════════════════════════════════ */
+/* SalonSwipe — Custom Styles                                   */
+/* ═══════════════════════════════════════════════════════════ */
+
+/* Tier badges */
+.tier-a { background: oklch(0.95 0.08 45); color: oklch(0.45 0.22 45); border: 1px solid oklch(0.85 0.12 45); }
+.tier-b { background: oklch(0.95 0.06 145); color: oklch(0.35 0.22 145); border: 1px solid oklch(0.85 0.1 145); }
+.tier-c { background: oklch(0.93 0.05 230); color: oklch(0.35 0.18 230); border: 1px solid oklch(0.83 0.08 230); }
+.tier-d { background: oklch(0.93 0.01 240); color: oklch(0.45 0.05 240); border: 1px solid oklch(0.83 0.02 240); }
+
+/* Swipe card */
+.swipe-card {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  will-change: transform;
+}
+
+/* Card stack */
+.card-stack-1 { transform: rotate(-2deg) scale(0.97) translateY(8px); }
+.card-stack-2 { transform: rotate(1deg) scale(0.94) translateY(16px); }
+
+/* Scrollbar hide */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Bottom nav safe area */
+.bottom-nav {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+}
+
+/* Vote overlays */
+.vote-like-overlay { border: 3px solid oklch(0.55 0.22 145); }
+.vote-superlike-overlay { border: 3px solid oklch(0.6 0.22 265); }
+.vote-dislike-overlay { border: 3px solid oklch(0.55 0.22 25); }

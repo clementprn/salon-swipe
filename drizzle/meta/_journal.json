@@ -1,5 +1,27 @@
 {
   "version": "7",
   "dialect": "mysql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1772634911750,
+      "tag": "0000_futuristic_brood",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1772635054306,
+      "tag": "0001_loud_menace",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1772635079666,
+      "tag": "0002_nappy_vargas",
+      "breakpoints": true
+    }
+  ]
 }

@@ -1,0 +1,22 @@
+{
+  "query": "SELECT COUNT(*) as total FROM exhibitors; SELECT e.name, COUNT(ex.id) as total FROM events e LEFT JOIN exhibitors ex ON e.id = ex.eventId GROUP BY e.id, e.name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 9G2RuJYVfAz7zpW.root --database cFjRj47o2sLAfsnoogrY8x --execute SELECT COUNT(*) as total FROM exhibitors; SELECT e.name, COUNT(ex.id) as total FROM events e LEFT JOIN exhibitors ex ON e.id = ex.eventId GROUP BY e.id, e.name;",
+  "rows": [
+    {
+      "total": "648"
+    },
+    {
+      "total": "name\ttotal"
+    },
+    {
+      "total": "TechInnov 2026\t277"
+    },
+    {
+      "total": "FHT 2026 - Food Hotel Tech\t372"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\n648\nname\ttotal\nTechInnov 2026\t277\nFHT 2026 - Food Hotel Tech\t372\n",
+  "stderr": "",
+  "execution_time_ms": 1701
+}

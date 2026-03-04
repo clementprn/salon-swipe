@@ -1,0 +1,8 @@
+{
+  "query": "\nALTER TABLE exhibitors \n  ADD COLUMN IF NOT EXISTS themes text DEFAULT '[]',\n  ADD COLUMN IF NOT EXISTS thematicTags text DEFAULT '[]',\n  ADD COLUMN IF NOT EXISTS sodexoReason text,\n  ADD COLUMN IF NOT EXISTS logoUrl varchar(500);\nALTER TABLE events\n  ADD COLUMN IF NOT EXISTS color varchar(20) DEFAULT '#2C3E7A',\n  ADD COLUMN IF NOT EXISTS logoUrl varchar(500),\n  ADD COLUMN IF NOT EXISTS isActive boolean NOT NULL DEFAULT true;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 9G2RuJYVfAz7zpW.root --database cFjRj47o2sLAfsnoogrY8x --execute \nALTER TABLE exhibitors \n  ADD COLUMN IF NOT EXISTS themes text DEFAULT '[]',\n  ADD COLUMN IF NOT EXISTS thematicTags text DEFAULT '[]',\n  ADD COLUMN IF NOT EXISTS sodexoReason text,\n  ADD COLUMN IF NOT EXISTS logoUrl varchar(500);\nALTER TABLE events\n  ADD COLUMN IF NOT EXISTS color varchar(20) DEFAULT '#2C3E7A',\n  ADD COLUMN IF NOT EXISTS logoUrl varchar(500),\n  ADD COLUMN IF NOT EXISTS isActive boolean NOT NULL DEFAULT true;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 2: Table 'cfjrj47o2slafsnoogry8x.exhibitors' doesn't exist"
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "query": "SHOW TABLES; DESCRIBE users;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 9G2RuJYVfAz7zpW.root --database cFjRj47o2sLAfsnoogrY8x --execute SHOW TABLES; DESCRIBE users;",
+  "rows": [
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "events"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "users"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "Field\tType\tNull\tKey\tDefault\tExtra"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "id\tint\tNO\tPRI\tNULL\tauto_increment"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "openId\tvarchar(64)\tNO\tUNI\tNULL\t"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "name\ttext\tYES\t\tNULL\t"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "email\tvarchar(320)\tYES\t\tNULL\t"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "loginMethod\tvarchar(64)\tYES\t\tNULL\t"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "role\tenum('user','admin')\tNO\t\tuser\t"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "createdAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "updatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Tables_in_cFjRj47o2sLAfsnoogrY8x": "lastSignedIn\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_cFjRj47o2sLAfsnoogrY8x\n__drizzle_migrations\nevents\nusers\nField\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nopenId\tvarchar(64)\tNO\tUNI\tNULL\t\nname\ttext\tYES\t\tNULL\t\nemail\tvarchar(320)\tYES\t\tNULL\t\nloginMethod\tvarchar(64)\tYES\t\tNULL\t\nrole\tenum('user','admin')\tNO\t\tuser\t\ncreatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nlastSignedIn\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\n",
+  "stderr": "",
+  "execution_time_ms": 1790
+}
