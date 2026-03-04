@@ -2,7 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Loader2, Heart, Star, X, Users, ChevronLeft, Globe, Trophy, Medal, Award, Trash2 } from "lucide-react";
+import { Loader2, Heart, Star, X, Users, ChevronLeft, Globe, Trophy, Medal, Award, Trash2, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getLoginUrl } from "@/const";
 
@@ -33,7 +33,24 @@ export default function TeamView({ eventId, eventName, onBack }: TeamViewProps) 
   const utils = trpc.useUtils();
 
   const deleteVote = trpc.votes.delete.useMutation({
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      await utils.votes.teamVotes.cancel();
+      const previousTeamVotes = utils.votes.teamVotes.getData({ eventId });
+      // Mise à jour optimiste : retirer le vote de l'utilisateur courant
+      utils.votes.teamVotes.setData({ eventId }, (old) => {
+        if (!old) return old;
+        return old.filter(v =>
+          !(v.exhibitorId === variables.exhibitorId && Number(v.userId) === user?.id)
+        );
+      });
+      return { previousTeamVotes };
+    },
+    onError: (_err, _variables, context: any) => {
+      if (context?.previousTeamVotes) {
+        utils.votes.teamVotes.setData({ eventId }, context.previousTeamVotes);
+      }
+    },
+    onSettled: () => {
       utils.votes.teamVotes.invalidate();
       utils.votes.myVotes.invalidate();
       utils.votes.stats.invalidate();
@@ -90,6 +107,27 @@ export default function TeamView({ eventId, eventName, onBack }: TeamViewProps) 
     dislike: allGrouped.filter(g => g.dislikeCount > 0).length,
   };
 
+  const handleExportClassement = () => {
+    if (allGrouped.length === 0) return;
+    const lines: string[] = [
+      `Classement équipe — ${eventName ?? "Salon"}`,
+      `Exporté le ${new Date().toLocaleDateString("fr-FR")}`,
+      "",
+      "Rang | Exposant | Stand | Tier | Score | \u2b50 SuperLikes | \u2705 Likes | \u274c Pas intéressé",
+      "---",
+      ...allGrouped.map((g, i) =>
+        `#${i + 1} | ${g.exhibitor.name} | Stand ${g.exhibitor.stand ?? "N/A"} | Tier ${g.exhibitor.tier} | ${g.score}pts | \u2b50 ${g.superlikeCount} | \u2705 ${g.likeCount} | \u274c ${g.dislikeCount}`
+      ),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `classement-${(eventName ?? "salon").replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -102,7 +140,15 @@ export default function TeamView({ eventId, eventName, onBack }: TeamViewProps) 
           <p className="text-sm font-bold">Vue Équipe</p>
           {eventName && <p className="text-xs text-muted-foreground">{eventName}</p>}
         </div>
-        <div className="w-16" />
+        <button
+          onClick={handleExportClassement}
+          disabled={allGrouped.length === 0}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+          title="Exporter le classement"
+        >
+          <Download className="w-4 h-4" />
+          <span className="hidden sm:inline">Export</span>
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-hide">
@@ -264,7 +310,7 @@ export default function TeamView({ eventId, eventName, onBack }: TeamViewProps) 
                           <Globe className="w-4 h-4 text-muted-foreground" />
                         </button>
                       )}
-                      {exVotes.some((v: any) => v.userId === user?.id) && (
+                      {exVotes.some((v: any) => Number(v.userId) === user?.id) && (
                         <button
                           onClick={() => deleteVote.mutate({ exhibitorId: exhibitor.id })}
                           disabled={deleteVote.isPending}

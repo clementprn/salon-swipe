@@ -70,3 +70,8 @@
 
 ## Nouvelles fonctionnalités (v1.3)
 - [x] Suppression de votes : bouton supprimer dans la vue Mes Votes (PlanView + TeamView)
+
+## Bugs & fonctionnalités (v1.3.1)
+- [x] Fix suppression vote : mise à jour optimiste du cache (plus de réapparition) + fix comparaison userId
+- [x] Export classement dans vue équipe (fichier .txt avec rang, score, votes)
+- [x] Export plan de visite dans vue planification (fichier .txt avec ordre optimisé)

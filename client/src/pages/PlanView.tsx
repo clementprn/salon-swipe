@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2, ChevronLeft, MapPin, Route, CheckSquare, Square,
   Star, Heart, Clock, ArrowRight, Globe, Shuffle, RotateCcw,
-  Trophy, Navigation, Trash2
+  Trophy, Navigation, Trash2, Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getLoginUrl } from "@/const";
@@ -104,13 +104,31 @@ export default function PlanView({ eventId, eventName, onBack }: PlanViewProps) 
   );
 
   const deleteVote = trpc.votes.delete.useMutation({
-    onSuccess: (_data, variables) => {
+    onMutate: async (variables) => {
+      // Annuler les refetch en cours
+      await utils.votes.myVotes.cancel();
+      // Snapshot de l'état actuel
+      const previousVotes = utils.votes.myVotes.getData({ eventId });
+      // Mise à jour optimiste : retirer le vote immédiatement du cache
+      utils.votes.myVotes.setData({ eventId }, (old) => {
+        if (!old) return old;
+        return old.filter(v => v.exhibitorId !== variables.exhibitorId);
+      });
       // Retirer de la sélection
       setSelected(prev => {
         const next = new Set(prev);
         next.delete(variables.exhibitorId);
         return next;
       });
+      return { previousVotes };
+    },
+    onError: (_err, _variables, context: any) => {
+      // Rollback en cas d'erreur
+      if (context?.previousVotes) {
+        utils.votes.myVotes.setData({ eventId }, context.previousVotes);
+      }
+    },
+    onSettled: () => {
       utils.votes.myVotes.invalidate();
       utils.votes.stats.invalidate();
     },
@@ -160,6 +178,29 @@ export default function PlanView({ eventId, eventName, onBack }: PlanViewProps) 
   const deselectAll = () => {
     setSelected(new Set());
     setShowPath(false);
+  };
+
+  const handleExportPlan = () => {
+    const path = showPath ? optimizedPath : selectedList;
+    if (path.length === 0) return;
+    const lines: string[] = [
+      `Plan de visite — ${eventName ?? "Salon"}`,
+      `Exporté le ${new Date().toLocaleDateString("fr-FR")}`,
+      `${path.length} stand${path.length > 1 ? "s" : ""} · ${estimateTime(path.length)} estimé`,
+      "",
+      ...(showPath ? path : path).map((e, i) =>
+        `${i + 1}. ${e.name} — Stand ${e.stand ?? "N/A"} (Tier ${e.tier})${
+          e.shortDescription ? " — " + e.shortDescription.slice(0, 80) : ""
+        }`
+      ),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `plan-visite-${(eventName ?? "salon").replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (!isAuthenticated) {
@@ -404,28 +445,38 @@ export default function PlanView({ eventId, eventName, onBack }: PlanViewProps) 
                 <ArrowRight className="w-4 h-4 ml-auto" />
               </Button>
             ) : (
-              <div className="flex gap-2">
+              <>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-2"
+                    onClick={() => setShowPath(false)}
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Modifier
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-2"
+                    onClick={() => {
+                      setShowPath(false);
+                      setTimeout(() => setShowPath(true), 100);
+                    }}
+                  >
+                    <Shuffle className="w-4 h-4" />
+                    Recalculer
+                  </Button>
+                </div>
                 <Button
                   variant="outline"
-                  className="flex-1 gap-2"
-                  onClick={() => setShowPath(false)}
+                  className="w-full gap-2"
+                  onClick={handleExportPlan}
+                  disabled={optimizedPath.length === 0}
                 >
-                  <RotateCcw className="w-4 h-4" />
-                  Modifier la sélection
+                  <Download className="w-4 h-4" />
+                  Exporter le plan de visite
                 </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1 gap-2"
-                  onClick={() => {
-                    // Re-générer avec un ordre légèrement différent (shuffle des halls)
-                    setShowPath(false);
-                    setTimeout(() => setShowPath(true), 100);
-                  }}
-                >
-                  <Shuffle className="w-4 h-4" />
-                  Recalculer
-                </Button>
-              </div>
+              </>
             )}
           </div>
         </>
