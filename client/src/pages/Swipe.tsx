@@ -16,54 +16,86 @@ interface SwipePageProps {
 }
 
 export default function SwipePage({ eventId, eventName, eventColor, onBack }: SwipePageProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [localQueue, setLocalQueue] = useState<Exhibitor[]>([]);
-  const [totalRemaining, setTotalRemaining] = useState<number | null>(null);
+  // totalSeen : nombre d'exposants déjà vus (pour la barre de progression)
+  const [totalSeen, setTotalSeen] = useState(0);
+  // totalForEvent : nombre total d'exposants de l'event (initialisé au premier chargement)
+  const [totalForEvent, setTotalForEvent] = useState<number | null>(null);
   const [lastVoted, setLastVoted] = useState<{ exhibitor: Exhibitor; voteType: string } | null>(null);
   const [siteUrl, setSiteUrl] = useState<string | null>(null);
+
+  // isDone est UNIQUEMENT contrôlé par le serveur :
+  // true seulement si le serveur renvoie queue vide ET remaining = 0
   const [isDone, setIsDone] = useState(false);
-  const [serverConfirmedDone, setServerConfirmedDone] = useState(false);
-  const initializedRef = useRef(false);
+
+  // Évite de déclencher isDone avant que la queue soit initialisée
+  const hasInitialized = useRef(false);
+  // Évite de refetch en boucle
+  const isFetching = useRef(false);
+
   const utils = trpc.useUtils();
 
   const { data, isLoading, refetch } = trpc.exhibitors.swipeQueue.useQuery(
     { eventId, batchSize: 10 },
-    { enabled: isAuthenticated, staleTime: 0 }
+    {
+      enabled: isAuthenticated,
+      staleTime: 0,
+      // Ne pas refetch automatiquement en arrière-plan
+      refetchOnWindowFocus: false,
+      refetchOnMount: true,
+    }
   );
 
-  // Initialiser la queue et le compteur total depuis le serveur
+  // Initialiser / mettre à jour la queue depuis le serveur
   useEffect(() => {
     if (!data) return;
 
-    if (data.queue.length === 0 && initializedRef.current) {
-      // Le serveur confirme qu'il n'y a plus rien
-      setServerConfirmedDone(true);
-      if (localQueue.length === 0) setIsDone(true);
+    isFetching.current = false;
+
+    if (!hasInitialized.current) {
+      // Premier chargement
+      hasInitialized.current = true;
+
+      if (data.queue.length === 0 && data.remaining === 0) {
+        // Le serveur confirme dès le départ que tout est vu
+        setIsDone(true);
+        return;
+      }
+
+      // Initialiser le total pour la barre de progression
+      // remaining = exposants non encore vus, donc total = remaining + déjà vus
+      // On ne connaît pas les "déjà vus" au départ, on utilise remaining comme référence
+      setTotalForEvent(data.remaining);
+      setLocalQueue(data.queue as Exhibitor[]);
+      return;
+    }
+
+    // Rechargement suite à refetch
+    if (data.queue.length === 0 && data.remaining === 0) {
+      // Serveur confirme : tout est vu
+      setLocalQueue(prev => {
+        if (prev.length === 0) setIsDone(true);
+        return prev;
+      });
       return;
     }
 
     if (data.queue.length > 0) {
       setLocalQueue(prev => {
-        if (!initializedRef.current) {
-          // Première initialisation
-          initializedRef.current = true;
-          setTotalRemaining(data.remaining);
-          return data.queue as Exhibitor[];
-        }
-        // Merge : ajouter les nouveaux items non présents
         const existingIds = new Set(prev.map(e => e.id));
         const newItems = (data.queue as Exhibitor[]).filter(e => !existingIds.has(e.id));
         return newItems.length > 0 ? [...prev, ...newItems] : prev;
       });
-      if (!initializedRef.current) {
-        setTotalRemaining(data.remaining);
-      }
-      setIsDone(false);
     }
   }, [data]);
 
   const castVote = trpc.votes.cast.useMutation({
-    onError: () => toast.error("Erreur lors du vote"),
+    onError: (_err, _vars, context: any) => {
+      toast.error("Erreur lors du vote");
+      // Rollback
+      if (context?.rollback) context.rollback();
+    },
   });
 
   const undoVote = trpc.votes.undo.useMutation({
@@ -79,46 +111,61 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     const current = localQueue[0];
     setLastVoted({ exhibitor: current, voteType });
 
-    // Optimistic update : retirer de la queue locale
-    setLocalQueue(prev => {
-      const next = prev.slice(1);
-      // N'afficher "tout vu" que si le serveur a confirmé qu'il n'y a plus rien
-      if (next.length === 0 && serverConfirmedDone) setIsDone(true);
-      return next;
-    });
-    setTotalRemaining(prev => (prev !== null ? Math.max(0, prev - 1) : null));
+    // Retirer de la queue locale (optimistic)
+    setLocalQueue(prev => prev.slice(1));
+    setTotalSeen(prev => prev + 1);
 
     try {
       await castVote.mutateAsync({ exhibitorId: current.id, eventId, voteType });
       utils.votes.myVotes.invalidate();
       utils.votes.stats.invalidate();
 
-      // Refetch si la queue locale est presque vide
+      // Refetch si la queue locale est presque vide (≤ 3 items)
       setLocalQueue(prev => {
-        if (prev.length <= 3) {
+        if (prev.length <= 3 && !isFetching.current) {
+          isFetching.current = true;
           refetch().then(res => {
-            if (res.data?.queue.length === 0 && prev.length <= 1) {
-              setServerConfirmedDone(true);
-              if (prev.length === 0) setIsDone(true);
+            if (res.data?.queue.length === 0 && res.data?.remaining === 0) {
+              // Attendre que la queue locale soit vide pour afficher "tout vu"
+              setLocalQueue(current => {
+                if (current.length === 0) setIsDone(true);
+                return current;
+              });
             }
           });
         }
         return prev;
       });
     } catch {
-      // Rollback
+      // Rollback optimistic
       setLocalQueue(prev => [current, ...prev]);
-      setTotalRemaining(prev => (prev !== null ? prev + 1 : null));
-      setIsDone(false);
+      setTotalSeen(prev => Math.max(0, prev - 1));
     }
   }, [localQueue, eventId, castVote, utils, refetch]);
+
+  // Quand la queue locale se vide, vérifier auprès du serveur
+  useEffect(() => {
+    if (!hasInitialized.current) return;
+    if (localQueue.length === 0 && !isFetching.current) {
+      isFetching.current = true;
+      refetch().then(res => {
+        isFetching.current = false;
+        if (res.data?.queue.length === 0 && res.data?.remaining === 0) {
+          setIsDone(true);
+        } else if (res.data && res.data.queue.length > 0) {
+          // Il reste des exposants
+          setLocalQueue(res.data.queue as Exhibitor[]);
+        }
+      });
+    }
+  }, [localQueue.length, refetch]);
 
   const handleUndo = useCallback(async () => {
     if (!lastVoted) return;
     try {
       await undoVote.mutateAsync({ exhibitorId: lastVoted.exhibitor.id });
       setLocalQueue(prev => [lastVoted.exhibitor, ...prev]);
-      setTotalRemaining(prev => (prev !== null ? prev + 1 : null));
+      setTotalSeen(prev => Math.max(0, prev - 1));
       setIsDone(false);
       setLastVoted(null);
     } catch {
@@ -137,7 +184,7 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     );
   }
 
-  if (isLoading && !initializedRef.current) {
+  if (isLoading && !hasInitialized.current) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -145,8 +192,8 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     );
   }
 
-  // Afficher "tout vu" seulement si le serveur confirme ET la queue locale est vide
-  if ((isDone || serverConfirmedDone) && localQueue.length === 0) {
+  // Afficher "tout vu" UNIQUEMENT si le serveur a confirmé remaining = 0
+  if (isDone && localQueue.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }}>
@@ -159,8 +206,15 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     );
   }
 
-  // Compteur : utiliser totalRemaining (du serveur) ou localQueue.length comme fallback
-  const displayRemaining = totalRemaining !== null ? totalRemaining : localQueue.length;
+  // Compteur : nombre restant = total - vus
+  const displayRemaining = totalForEvent !== null
+    ? Math.max(0, totalForEvent - totalSeen)
+    : localQueue.length;
+
+  // Progression : % de vus sur le total
+  const progressPct = totalForEvent && totalForEvent > 0
+    ? Math.min(100, Math.round((totalSeen / totalForEvent) * 100))
+    : 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -173,7 +227,7 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
         <div className="text-center">
           <p className="text-xs font-semibold text-muted-foreground truncate max-w-[140px]">{eventName}</p>
           <p className="text-xs text-muted-foreground font-medium">
-            {displayRemaining} exposant{displayRemaining > 1 ? "s" : ""} restant{displayRemaining > 1 ? "s" : ""}
+            {displayRemaining} exposant{displayRemaining !== 1 ? "s" : ""} restant{displayRemaining !== 1 ? "s" : ""}
           </p>
         </div>
         <button
@@ -187,20 +241,13 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
       </div>
 
       {/* Progress bar */}
-      {totalRemaining !== null && data?.remaining !== undefined && (
-        <div className="flex-shrink-0 h-1 bg-muted">
-          <motion.div
-            className="h-full bg-primary"
-            initial={{ width: 0 }}
-            animate={{
-              width: `${Math.max(2, Math.round(
-                ((data.remaining - totalRemaining) / Math.max(data.remaining, 1)) * 100
-              ))}%`
-            }}
-            transition={{ duration: 0.4 }}
-          />
-        </div>
-      )}
+      <div className="flex-shrink-0 h-1 bg-muted">
+        <motion.div
+          className="h-full bg-primary"
+          animate={{ width: `${Math.max(progressPct > 0 ? 2 : 0, progressPct)}%` }}
+          transition={{ duration: 0.4 }}
+        />
+      </div>
 
       {/* Card stack */}
       <div className="flex-1 relative p-4 pb-2 min-h-0">
