@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2, ChevronLeft, MapPin, Route, CheckSquare, Square,
   Star, Heart, Clock, ArrowRight, Globe, Shuffle, RotateCcw,
-  Trophy, Navigation
+  Trophy, Navigation, Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getLoginUrl } from "@/const";
@@ -96,11 +96,25 @@ export default function PlanView({ eventId, eventName, onBack }: PlanViewProps) 
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [siteUrl, setSiteUrl] = useState<string | null>(null);
   const [showPath, setShowPath] = useState(false);
+  const utils = trpc.useUtils();
 
   const { data: myVotes, isLoading } = trpc.votes.myVotes.useQuery(
     { eventId },
     { enabled: isAuthenticated }
   );
+
+  const deleteVote = trpc.votes.delete.useMutation({
+    onSuccess: (_data, variables) => {
+      // Retirer de la sélection
+      setSelected(prev => {
+        const next = new Set(prev);
+        next.delete(variables.exhibitorId);
+        return next;
+      });
+      utils.votes.myVotes.invalidate();
+      utils.votes.stats.invalidate();
+    },
+  });
 
   // Exposants likés ou superlikés, triés par score pondéré
   const favorites = useMemo(() => {
@@ -255,11 +269,22 @@ export default function PlanView({ eventId, eventName, onBack }: PlanViewProps) 
                           )}
                         </div>
 
-                        {/* Vote badge */}
-                        <div className="flex-shrink-0">
+                        {/* Vote badge + Supprimer */}
+                        <div className="flex-shrink-0 flex items-center gap-2">
                           {exhibitor.voteType === "superlike"
                             ? <Star className="w-4 h-4 text-blue-500 fill-blue-500" />
                             : <Heart className="w-4 h-4 text-green-500 fill-green-500" />}
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              deleteVote.mutate({ exhibitorId: exhibitor.id });
+                            }}
+                            disabled={deleteVote.isPending}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
+                            title="Supprimer ce vote"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </motion.div>
                     );

@@ -88,6 +88,13 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    delete: protectedProcedure
+      .input(z.object({ exhibitorId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await deleteVote(ctx.user.id, input.exhibitorId);
+        return { success: true };
+      }),
+
     myVotes: protectedProcedure
       .input(z.object({ eventId: z.number().optional() }))
       .query(async ({ ctx, input }) => {

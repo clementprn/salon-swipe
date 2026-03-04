@@ -2,7 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Loader2, Heart, Star, X, Users, ChevronLeft, Globe, Trophy, Medal, Award } from "lucide-react";
+import { Loader2, Heart, Star, X, Users, ChevronLeft, Globe, Trophy, Medal, Award, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getLoginUrl } from "@/const";
 
@@ -27,9 +27,18 @@ function RankIcon({ rank }: { rank: number }) {
 }
 
 export default function TeamView({ eventId, eventName, onBack }: TeamViewProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [filter, setFilter] = useState<"all" | "like" | "superlike" | "dislike">("all");
   const [siteUrl, setSiteUrl] = useState<string | null>(null);
+  const utils = trpc.useUtils();
+
+  const deleteVote = trpc.votes.delete.useMutation({
+    onSuccess: () => {
+      utils.votes.teamVotes.invalidate();
+      utils.votes.myVotes.invalidate();
+      utils.votes.stats.invalidate();
+    },
+  });
 
   const { data: teamVotes, isLoading } = trpc.votes.teamVotes.useQuery(
     { eventId },
@@ -245,15 +254,27 @@ export default function TeamView({ eventId, eventName, onBack }: TeamViewProps) 
                       </div>
                     </div>
 
-                    {/* Website */}
-                    {exhibitor.website && (
-                      <button
-                        onClick={() => setSiteUrl(exhibitor.website)}
-                        className="flex-shrink-0 w-8 h-8 rounded-lg bg-muted flex items-center justify-center hover:bg-primary/10 transition-colors"
-                      >
-                        <Globe className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                    )}
+                    {/* Website + Supprimer mon vote */}
+                    <div className="flex-shrink-0 flex flex-col gap-1.5">
+                      {exhibitor.website && (
+                        <button
+                          onClick={() => setSiteUrl(exhibitor.website)}
+                          className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center hover:bg-primary/10 transition-colors"
+                        >
+                          <Globe className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                      )}
+                      {exVotes.some((v: any) => v.userId === user?.id) && (
+                        <button
+                          onClick={() => deleteVote.mutate({ exhibitorId: exhibitor.id })}
+                          disabled={deleteVote.isPending}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
+                          title="Supprimer mon vote"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               );

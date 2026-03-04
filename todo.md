@@ -67,3 +67,6 @@
 - [x] Chatbot IA — ORDER BY alias non supporté en MySQL (superlikes/likes)
 - [x] Création équipe — insertId retourné en string → NaN
 - [x] Stats accueil — ne pas afficher le bloc si total votes = 0
+
+## Nouvelles fonctionnalités (v1.3)
+- [x] Suppression de votes : bouton supprimer dans la vue Mes Votes (PlanView + TeamView)
