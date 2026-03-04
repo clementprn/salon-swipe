@@ -77,3 +77,36 @@ export const votes = mysqlTable("votes", {
 
 export type Vote = typeof votes.$inferSelect;
 export type InsertVote = typeof votes.$inferInsert;
+
+// ── Équipes ──────────────────────────────────────────────────
+export const teams = mysqlTable("teams", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  eventId: int("eventId").notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Team = typeof teams.$inferSelect;
+export type InsertTeam = typeof teams.$inferInsert;
+
+export const teamMembers = mysqlTable("teamMembers", {
+  id: int("id").autoincrement().primaryKey(),
+  teamId: int("teamId").notNull(),
+  userId: int("userId").notNull(),
+  eventId: int("eventId").notNull(),
+  joinedAt: timestamp("joinedAt").defaultNow().notNull(),
+});
+
+export type TeamMember = typeof teamMembers.$inferSelect;
+
+export const inviteTokens = mysqlTable("inviteTokens", {
+  id: int("id").autoincrement().primaryKey(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  teamId: int("teamId").notNull(),
+  createdBy: int("createdBy").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type InviteToken = typeof inviteTokens.$inferSelect;

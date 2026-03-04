@@ -22,6 +22,7 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
   const [lastVoted, setLastVoted] = useState<{ exhibitor: Exhibitor; voteType: string } | null>(null);
   const [siteUrl, setSiteUrl] = useState<string | null>(null);
   const [isDone, setIsDone] = useState(false);
+  const [serverConfirmedDone, setServerConfirmedDone] = useState(false);
   const initializedRef = useRef(false);
   const utils = trpc.useUtils();
 
@@ -35,7 +36,8 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     if (!data) return;
 
     if (data.queue.length === 0 && initializedRef.current) {
-      // On a déjà initialisé et le serveur dit qu'il n'y a plus rien
+      // Le serveur confirme qu'il n'y a plus rien
+      setServerConfirmedDone(true);
       if (localQueue.length === 0) setIsDone(true);
       return;
     }
@@ -80,7 +82,8 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     // Optimistic update : retirer de la queue locale
     setLocalQueue(prev => {
       const next = prev.slice(1);
-      if (next.length === 0) setIsDone(true);
+      // N'afficher "tout vu" que si le serveur a confirmé qu'il n'y a plus rien
+      if (next.length === 0 && serverConfirmedDone) setIsDone(true);
       return next;
     });
     setTotalRemaining(prev => (prev !== null ? Math.max(0, prev - 1) : null));
@@ -92,7 +95,14 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
 
       // Refetch si la queue locale est presque vide
       setLocalQueue(prev => {
-        if (prev.length <= 3) refetch();
+        if (prev.length <= 3) {
+          refetch().then(res => {
+            if (res.data?.queue.length === 0 && prev.length <= 1) {
+              setServerConfirmedDone(true);
+              if (prev.length === 0) setIsDone(true);
+            }
+          });
+        }
         return prev;
       });
     } catch {
@@ -135,7 +145,8 @@ export default function SwipePage({ eventId, eventName, eventColor, onBack }: Sw
     );
   }
 
-  if (isDone && localQueue.length === 0) {
+  // Afficher "tout vu" seulement si le serveur confirme ET la queue locale est vide
+  if ((isDone || serverConfirmedDone) && localQueue.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }}>

@@ -52,3 +52,13 @@
 - [x] Bouton "Tout sélectionner / désélectionner"
 - [x] Affichage du temps de visite estimé (~15 min/stand)
 - [x] Bouton "Modifier la sélection" pour revenir en arrière
+
+## Nouvelles fonctionnalités (v1.2)
+- [x] Corriger le compteur segmenté par salon (bug : compteur global au lieu de par event)
+- [x] Export votes en CSV (mes votes + votes équipe)
+- [ ] Export parcours planifié en texte/PDF
+- [x] Système d'équipes : créer une équipe, rejoindre via lien d'invitation
+- [x] Invitation par mail avec lien unique
+- [x] Bouton info salon : descriptif, dates, lieu, navigation GPS (Google Maps, Waze, Apple Maps)
+- [x] Chatbot IA : tendances de vote, invites prédéfinies, analyse des données
+- [x] Chatbot IA : autres usages (recommandations exposants, résumé des notes, questions sur un exposant)

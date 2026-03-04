@@ -1,6 +1,6 @@
 import { eq, and, ne, notInArray, desc, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, events, exhibitors, votes } from "../drizzle/schema";
+import { InsertUser, users, events, exhibitors, votes, teams, teamMembers, inviteTokens } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -312,5 +312,191 @@ export async function getVoteStats(eventId?: number) {
       superlikes: Number(u.superlikes),
       dislikes: Number(u.dislikes),
     })),
+  };
+}
+
+// ── Teams ─────────────────────────────────────────────────────
+export async function getTeams(eventId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(teams).where(eq(teams.eventId, eventId)).orderBy(teams.name);
+}
+
+export async function getMyTeam(userId: number, eventId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Trouver le membership de cet user pour cet event
+  const membership = await db.select().from(teamMembers)
+    .where(and(eq(teamMembers.userId, userId), eq(teamMembers.eventId, eventId)))
+    .limit(1);
+
+  if (membership.length === 0) return null;
+
+  const team = await db.select().from(teams)
+    .where(eq(teams.id, membership[0].teamId))
+    .limit(1);
+
+  if (team.length === 0) return null;
+
+  // Récupérer les membres
+  const members = await db.select({
+    id: users.id,
+    name: users.name,
+    email: users.email,
+  })
+    .from(teamMembers)
+    .innerJoin(users, eq(teamMembers.userId, users.id))
+    .where(and(eq(teamMembers.teamId, team[0].id), eq(teamMembers.eventId, eventId)));
+
+  return { ...team[0], members };
+}
+
+export async function createTeam(userId: number, name: string, eventId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Créer l'équipe
+  const result = await db.insert(teams).values({ name, eventId, createdBy: userId });
+  const teamId = Number((result as any).insertId);
+
+  // Ajouter le créateur comme membre
+  await db.insert(teamMembers).values({ userId, teamId, eventId });
+
+  return { id: teamId, name, eventId, createdBy: userId };
+}
+
+export async function joinTeam(userId: number, teamId: number, eventId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Vérifier si déjà membre d'une équipe pour cet event
+  const existing = await db.select().from(teamMembers)
+    .where(and(eq(teamMembers.userId, userId), eq(teamMembers.eventId, eventId)))
+    .limit(1);
+
+  if (existing.length > 0) {
+    // Changer d'équipe
+    await db.update(teamMembers)
+      .set({ teamId })
+      .where(and(eq(teamMembers.userId, userId), eq(teamMembers.eventId, eventId)));
+  } else {
+    await db.insert(teamMembers).values({ userId, teamId, eventId });
+  }
+
+  return { success: true, teamId };
+}
+
+export async function createInviteToken(userId: number, teamId: number): Promise<string> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Générer un token unique
+  const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 jours
+
+  await db.insert(inviteTokens).values({ token, teamId, createdBy: userId, expiresAt });
+  return token;
+}
+
+export async function resolveInviteToken(userId: number, token: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  const invite = await db.select().from(inviteTokens)
+    .where(eq(inviteTokens.token, token))
+    .limit(1);
+
+  if (invite.length === 0) throw new Error("Lien d'invitation invalide");
+  if (invite[0].expiresAt < new Date()) throw new Error("Lien d'invitation expiré");
+
+  // Récupérer l'équipe pour avoir l'eventId
+  const team = await db.select().from(teams).where(eq(teams.id, invite[0].teamId)).limit(1);
+  if (team.length === 0) throw new Error("Équipe introuvable");
+
+  await joinTeam(userId, invite[0].teamId, team[0].eventId);
+  return { success: true, teamId: invite[0].teamId, teamName: team[0].name, eventId: team[0].eventId };
+}
+
+// ── AI Stats ──────────────────────────────────────────────────
+export async function getVoteStatsForAI(userId: number, eventId?: number) {
+  const db = await getDb();
+  if (!db) return {};
+
+  const condition = eventId ? eq(votes.eventId, eventId) : undefined;
+
+  // Top exposants likés par l'équipe
+  const topLiked = await db.select({
+    name: exhibitors.name,
+    stand: exhibitors.stand,
+    tier: exhibitors.tier,
+    sector: exhibitors.sector,
+    likes: sql<number>`SUM(CASE WHEN ${votes.voteType}='like' THEN 1 ELSE 0 END)`,
+    superlikes: sql<number>`SUM(CASE WHEN ${votes.voteType}='superlike' THEN 1 ELSE 0 END)`,
+    dislikes: sql<number>`SUM(CASE WHEN ${votes.voteType}='dislike' THEN 1 ELSE 0 END)`,
+  })
+    .from(votes)
+    .innerJoin(exhibitors, eq(votes.exhibitorId, exhibitors.id))
+    .where(condition)
+    .groupBy(exhibitors.id, exhibitors.name, exhibitors.stand, exhibitors.tier, exhibitors.sector)
+    .orderBy(desc(sql`superlikes * 3 + likes`))
+    .limit(20);
+
+  // Stats globales
+  const [totals] = await db.select({
+    total: sql<number>`COUNT(*)`,
+    likes: sql<number>`SUM(CASE WHEN voteType='like' THEN 1 ELSE 0 END)`,
+    superlikes: sql<number>`SUM(CASE WHEN voteType='superlike' THEN 1 ELSE 0 END)`,
+    dislikes: sql<number>`SUM(CASE WHEN voteType='dislike' THEN 1 ELSE 0 END)`,
+  }).from(votes).where(condition);
+
+  // Stats par tier
+  const tierStats = await db.select({
+    tier: exhibitors.tier,
+    voteType: votes.voteType,
+    count: sql<number>`COUNT(*)`,
+  })
+    .from(votes)
+    .innerJoin(exhibitors, eq(votes.exhibitorId, exhibitors.id))
+    .where(condition)
+    .groupBy(exhibitors.tier, votes.voteType);
+
+  // Mes votes personnels
+  const myVotesData = await db.select({
+    name: exhibitors.name,
+    stand: exhibitors.stand,
+    tier: exhibitors.tier,
+    voteType: votes.voteType,
+    note: votes.note,
+  })
+    .from(votes)
+    .innerJoin(exhibitors, eq(votes.exhibitorId, exhibitors.id))
+    .where(and(eq(votes.userId, userId), ...(eventId ? [eq(votes.eventId, eventId)] : [])))
+    .orderBy(desc(votes.updatedAt))
+    .limit(50);
+
+  return {
+    globalStats: {
+      total: Number(totals?.total ?? 0),
+      likes: Number(totals?.likes ?? 0),
+      superlikes: Number(totals?.superlikes ?? 0),
+      dislikes: Number(totals?.dislikes ?? 0),
+    },
+    topExhibitors: topLiked.map(e => ({
+      name: e.name,
+      stand: e.stand,
+      tier: e.tier,
+      sector: e.sector,
+      likes: Number(e.likes),
+      superlikes: Number(e.superlikes),
+      dislikes: Number(e.dislikes),
+      score: Number(e.superlikes) * 3 + Number(e.likes),
+    })),
+    byTier: tierStats.reduce((acc: Record<string, Record<string, number>>, r) => {
+      if (!acc[r.tier]) acc[r.tier] = {};
+      acc[r.tier][r.voteType] = Number(r.count);
+      return acc;
+    }, {}),
+    myVotes: myVotesData,
   };
 }

@@ -27,8 +27,21 @@ vi.mock("./db", () => ({
   getMyVotes: vi.fn().mockResolvedValue([]),
   getTeamVotes: vi.fn().mockResolvedValue([]),
   getVoteStats: vi.fn().mockResolvedValue({ total: 0, likes: 0, superlikes: 0, dislikes: 0, byTier: {}, byUser: [] }),
+  getTeams: vi.fn().mockResolvedValue([]),
+  getMyTeam: vi.fn().mockResolvedValue(null),
+  createTeam: vi.fn().mockResolvedValue({ id: 1, name: "Test Team", eventId: 1, createdBy: 1 }),
+  joinTeam: vi.fn().mockResolvedValue({ success: true, teamId: 1 }),
+  createInviteToken: vi.fn().mockResolvedValue("mock-token-abc123"),
+  resolveInviteToken: vi.fn().mockRejectedValue(new Error("Lien d'invitation invalide")),
+  getVoteStatsForAI: vi.fn().mockResolvedValue({ globalStats: { total: 0, likes: 0, superlikes: 0, dislikes: 0 }, topExhibitors: [], byTier: {}, myVotes: [] }),
   upsertUser: vi.fn(),
   getUserByOpenId: vi.fn(),
+}));
+
+vi.mock("./_core/llm", () => ({
+  invokeLLM: vi.fn().mockResolvedValue({
+    choices: [{ message: { content: "Voici l'analyse des votes : aucun vote pour l'instant." } }],
+  }),
 }));
 
 function createPublicCtx(): TrpcContext {
@@ -192,5 +205,107 @@ describe("votes", () => {
     await expect(
       caller.votes.cast({ exhibitorId: 1, eventId: 1, voteType: "invalid" as any })
     ).rejects.toThrow();
+  });
+});
+
+// ── Teams tests ────────────────────────────────────────────────
+describe("teams", () => {
+  it("myTeam requires authentication", async () => {
+    const caller = appRouter.createCaller(createPublicCtx());
+    await expect(caller.teams.myTeam({ eventId: 1 })).rejects.toThrow();
+  });
+
+  it("myTeam returns null when not in any team", async () => {
+    const caller = appRouter.createCaller(createAuthCtx());
+    const result = await caller.teams.myTeam({ eventId: 9999 });
+    expect(result).toBeNull();
+  });
+
+  it("list requires authentication", async () => {
+    const caller = appRouter.createCaller(createPublicCtx());
+    await expect(caller.teams.list({ eventId: 1 })).rejects.toThrow();
+  });
+
+  it("list returns empty array for unknown event", async () => {
+    const caller = appRouter.createCaller(createAuthCtx());
+    const result = await caller.teams.list({ eventId: 9999 });
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(0);
+  });
+
+  it("create requires authentication", async () => {
+    const caller = appRouter.createCaller(createPublicCtx());
+    await expect(caller.teams.create({ name: "Test", eventId: 1 })).rejects.toThrow();
+  });
+
+  it("create rejects empty team name", async () => {
+    const caller = appRouter.createCaller(createAuthCtx());
+    await expect(caller.teams.create({ name: "", eventId: 1 })).rejects.toThrow();
+  });
+
+  it("createInvite requires authentication", async () => {
+    const caller = appRouter.createCaller(createPublicCtx());
+    await expect(caller.teams.createInvite({ teamId: 1, origin: "https://example.com" })).rejects.toThrow();
+  });
+
+  it("createInvite returns url with token", async () => {
+    const caller = appRouter.createCaller(createAuthCtx());
+    const result = await caller.teams.createInvite({ teamId: 1, origin: "https://example.com" });
+    expect(result.url).toContain("https://example.com/join?token=");
+    expect(result.token).toBe("mock-token-abc123");
+  });
+
+  it("resolveInvite requires authentication", async () => {
+    const caller = appRouter.createCaller(createPublicCtx());
+    await expect(caller.teams.resolveInvite({ token: "abc" })).rejects.toThrow();
+  });
+
+  it("resolveInvite throws on invalid token", async () => {
+    const caller = appRouter.createCaller(createAuthCtx());
+    await expect(caller.teams.resolveInvite({ token: "invalid-token-xyz" })).rejects.toThrow();
+  });
+});
+
+// ── Export CSV tests ───────────────────────────────────────────
+describe("votes.exportCsv", () => {
+  it("requires authentication", async () => {
+    const caller = appRouter.createCaller(createPublicCtx());
+    await expect(caller.votes.exportCsv({ scope: "mine" })).rejects.toThrow();
+  });
+
+  it("returns empty CSV when no votes", async () => {
+    const caller = appRouter.createCaller(createAuthCtx());
+    const result = await caller.votes.exportCsv({ scope: "mine" });
+    expect(result.count).toBe(0);
+    expect(result.csv).toContain("Exposant,Stand,Tier,Vote");
+  });
+
+  it("rejects invalid scope", async () => {
+    const caller = appRouter.createCaller(createAuthCtx());
+    await expect(caller.votes.exportCsv({ scope: "invalid" as any })).rejects.toThrow();
+  });
+});
+
+// ── AI Chat tests ──────────────────────────────────────────────
+describe("ai.chat", () => {
+  it("requires authentication", async () => {
+    const caller = appRouter.createCaller(createPublicCtx());
+    await expect(caller.ai.chat({ message: "Bonjour" })).rejects.toThrow();
+  });
+
+  it("rejects empty message", async () => {
+    const caller = appRouter.createCaller(createAuthCtx());
+    await expect(caller.ai.chat({ message: "" })).rejects.toThrow();
+  });
+
+  it("rejects message over 500 chars", async () => {
+    const caller = appRouter.createCaller(createAuthCtx());
+    await expect(caller.ai.chat({ message: "a".repeat(501) })).rejects.toThrow();
+  });
+
+  it("returns AI reply for valid message", async () => {
+    const caller = appRouter.createCaller(createAuthCtx());
+    const result = await caller.ai.chat({ message: "Quels sont les top exposants ?" });
+    expect(result.reply).toContain("analyse");
   });
 });
