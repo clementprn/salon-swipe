@@ -360,8 +360,8 @@ export default function Home() {
               </button>
             )}
 
-            {/* Quick stats */}
-            {isAuthenticated && myStats && myStats.total > 0 && (
+            {/* Quick stats — uniquement si des votes existent */}
+            {isAuthenticated && myStats && (myStats.likes + myStats.superlikes + myStats.dislikes) > 0 && (
               <div className="bg-muted/50 rounded-2xl p-4">
                 <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1">
                   <BarChart3 className="w-3.5 h-3.5" />

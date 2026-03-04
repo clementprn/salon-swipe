@@ -62,3 +62,8 @@
 - [x] Bouton info salon : descriptif, dates, lieu, navigation GPS (Google Maps, Waze, Apple Maps)
 - [x] Chatbot IA : tendances de vote, invites prédéfinies, analyse des données
 - [x] Chatbot IA : autres usages (recommandations exposants, résumé des notes, questions sur un exposant)
+
+## Bugs v1.2 (signalés)
+- [x] Chatbot IA — ORDER BY alias non supporté en MySQL (superlikes/likes)
+- [x] Création équipe — insertId retourné en string → NaN
+- [x] Stats accueil — ne pas afficher le bloc si total votes = 0

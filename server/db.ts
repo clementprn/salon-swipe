@@ -357,8 +357,16 @@ export async function createTeam(userId: number, name: string, eventId: number) 
   if (!db) throw new Error("DB not available");
 
   // Créer l'équipe
-  const result = await db.insert(teams).values({ name, eventId, createdBy: userId });
-  const teamId = Number((result as any).insertId);
+  await db.insert(teams).values({ name, eventId, createdBy: userId });
+
+  // Récupérer l'ID de la dernière équipe créée par cet utilisateur
+  const [created] = await db.select({ id: teams.id })
+    .from(teams)
+    .where(and(eq(teams.createdBy, userId), eq(teams.eventId, eventId)))
+    .orderBy(desc(teams.createdAt))
+    .limit(1);
+
+  const teamId = created.id;
 
   // Ajouter le créateur comme membre
   await db.insert(teamMembers).values({ userId, teamId, eventId });
@@ -439,7 +447,7 @@ export async function getVoteStatsForAI(userId: number, eventId?: number) {
     .innerJoin(exhibitors, eq(votes.exhibitorId, exhibitors.id))
     .where(condition)
     .groupBy(exhibitors.id, exhibitors.name, exhibitors.stand, exhibitors.tier, exhibitors.sector)
-    .orderBy(desc(sql`superlikes * 3 + likes`))
+    .orderBy(desc(sql`SUM(CASE WHEN ${votes.voteType}='superlike' THEN 1 ELSE 0 END) * 3 + SUM(CASE WHEN ${votes.voteType}='like' THEN 1 ELSE 0 END)`))
     .limit(20);
 
   // Stats globales
