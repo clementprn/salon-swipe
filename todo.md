@@ -80,3 +80,10 @@
 - [x] Bouton "Tout supprimer mes votes" dans PlanView et TeamView (avec confirmation)
 - [x] Exports en Markdown (.md) avec tableaux et sections structurées
 - [x] Chatbot : génération de rapports exportables en Markdown + 2 nouvelles invites rapport
+
+## Landing page & Auth (v1.5)
+- [x] Landing page marketing (hero, features, testimonials, CTA)
+- [x] Page de connexion avec Manus OAuth (email)
+- [x] Boutons SSO Google / Microsoft / Apple (visuellement intégrés, redirigent vers Manus OAuth)
+- [x] Protection de la plateforme : /app redirige vers /login si non connecté
+- [x] Navigation landing → connexion → plateforme (/app)

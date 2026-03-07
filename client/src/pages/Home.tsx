@@ -7,7 +7,7 @@ import {
   Bot, Download, Info, UserPlus
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getLoginUrl } from "@/const";
+import { useLocation } from "wouter";
 import { toast } from "sonner";
 import SwipePage from "./Swipe";
 import TeamView from "./TeamView";
@@ -31,6 +31,7 @@ interface SelectedEvent {
 
 export default function Home() {
   const { user, isAuthenticated, loading, logout } = useAuth();
+  const [, navigate] = useLocation();
   const [view, setView] = useState<View>("home");
   const [selectedEvent, setSelectedEvent] = useState<SelectedEvent | null>(null);
   const [showEventInfo, setShowEventInfo] = useState(false);
@@ -50,7 +51,7 @@ export default function Home() {
   );
 
   const handleExport = async () => {
-    if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
+    if (!isAuthenticated) { navigate("/login"); return; }
     const result = await fetchExport();
     if (!result.data?.csv) { toast.error("Aucun vote à exporter"); return; }
     const blob = new Blob([result.data.csv], { type: "text/csv;charset=utf-8;" });
@@ -148,7 +149,7 @@ export default function Home() {
               </button>
             </div>
           ) : (
-            <Button size="sm" onClick={() => window.location.href = getLoginUrl()}>
+            <Button size="sm" onClick={() => navigate("/login")}>
               <User className="w-4 h-4 mr-1.5" />
               Connexion
             </Button>
@@ -271,7 +272,7 @@ export default function Home() {
 
             {/* Swipe */}
             <button
-              onClick={() => isAuthenticated ? setView("swipe") : window.location.href = getLoginUrl()}
+              onClick={() => isAuthenticated ? setView("swipe") : navigate("/login")}
               className="w-full flex items-center gap-4 p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg active:scale-98 transition-transform"
             >
               <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
@@ -288,7 +289,7 @@ export default function Home() {
             <div className="grid grid-cols-2 gap-3">
               {/* Vue équipe */}
               <button
-                onClick={() => isAuthenticated ? setView("team") : window.location.href = getLoginUrl()}
+                onClick={() => isAuthenticated ? setView("team") : navigate("/login")}
                 className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all"
               >
                 <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -302,7 +303,7 @@ export default function Home() {
 
               {/* Planification */}
               <button
-                onClick={() => isAuthenticated ? setView("plan") : window.location.href = getLoginUrl()}
+                onClick={() => isAuthenticated ? setView("plan") : navigate("/login")}
                 className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all"
               >
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
@@ -316,7 +317,7 @@ export default function Home() {
 
               {/* Équipes */}
               <button
-                onClick={() => isAuthenticated ? setView("teamsetup") : window.location.href = getLoginUrl()}
+                onClick={() => isAuthenticated ? setView("teamsetup") : navigate("/login")}
                 className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all"
               >
                 <div className="w-9 h-9 rounded-xl bg-violet-50 border border-violet-200 flex items-center justify-center">
@@ -330,7 +331,7 @@ export default function Home() {
 
               {/* Assistant IA */}
               <button
-                onClick={() => isAuthenticated ? setShowChatBot(true) : window.location.href = getLoginUrl()}
+                onClick={() => isAuthenticated ? setShowChatBot(true) : navigate("/login")}
                 className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all"
               >
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-accent/30 flex items-center justify-center">
