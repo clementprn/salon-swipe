@@ -1,443 +1,234 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { getLoginUrl } from "@/const";
-import {
-  Zap, Users, Navigation, Bot, BarChart3, Download,
-  ArrowRight, CheckCircle2, Star, ChevronDown
-} from "lucide-react";
+import { Zap, ArrowRight, CheckCircle2, X, Loader2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
-const FEATURES = [
-  {
-    icon: Zap,
-    color: "from-blue-500 to-blue-600",
-    title: "Swipe & évaluez",
-    desc: "Interface Tinder-like pour évaluer chaque exposant en quelques secondes. Like, Super Like ou Skip.",
-  },
-  {
-    icon: Users,
-    color: "from-violet-500 to-violet-600",
-    title: "Vue équipe",
-    desc: "Consolidez les votes de toute votre équipe. Classement pondéré, consensus instantané.",
-  },
-  {
-    icon: Navigation,
-    color: "from-emerald-500 to-emerald-600",
-    title: "Parcours optimisé",
-    desc: "Générez un chemin de visite intelligent basé sur vos favoris, organisé par hall.",
-  },
-  {
-    icon: Bot,
-    color: "from-amber-500 to-orange-500",
-    title: "Assistant IA",
-    desc: "Analysez les tendances, générez des rapports exportables, obtenez des recommandations.",
-  },
-  {
-    icon: BarChart3,
-    color: "from-rose-500 to-pink-500",
-    title: "Rapports & exports",
-    desc: "Exportez vos votes, classements et parcours en Markdown ou CSV en un clic.",
-  },
-  {
-    icon: Download,
-    color: "from-cyan-500 to-sky-500",
-    title: "Multi-salons",
-    desc: "Gérez plusieurs événements en parallèle. Chaque salon a son propre espace de votes.",
-  },
-];
+function WaitlistModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
+  const [done, setDone] = useState(false);
 
-const TESTIMONIALS = [
-  {
-    name: "Marie L.",
-    role: "Directrice Achats, Groupe Sodexo",
-    text: "On a réduit notre temps de préparation de 3 heures à 20 minutes. L'IA nous donne exactement les insights qu'on cherchait.",
-    stars: 5,
-  },
-  {
-    name: "Thomas R.",
-    role: "Chef de projet, Elior",
-    text: "La vue équipe est révolutionnaire. Tout le monde vote de son côté et on voit le consensus en temps réel.",
-    stars: 5,
-  },
-  {
-    name: "Sophie M.",
-    role: "Responsable Innovation, Compass Group",
-    text: "Le parcours optimisé nous a fait gagner 2 heures sur le salon. On ne rate plus aucun stand prioritaire.",
-    stars: 5,
-  },
-];
+  const joinWaitlist = trpc.waitlist.join.useMutation({
+    onSuccess: () => setDone(true),
+    onError: (e) => toast.error(e.message || "Une erreur est survenue"),
+  });
 
-const FAQ = [
-  {
-    q: "SalonSwipe fonctionne-t-il sur mobile ?",
-    a: "Oui, SalonSwipe est conçu mobile-first. L'interface swipe est optimisée pour les smartphones, idéale pour préparer votre visite depuis n'importe où.",
-  },
-  {
-    q: "Combien de membres peut avoir une équipe ?",
-    a: "Il n'y a pas de limite. Invitez tous vos collègues via un lien unique. Chacun vote de son côté, les résultats sont consolidés automatiquement.",
-  },
-  {
-    q: "Les données sont-elles sécurisées ?",
-    a: "Oui. Chaque utilisateur ne voit que ses propres votes et ceux de son équipe. Les données sont stockées de manière sécurisée et ne sont jamais partagées entre organisations.",
-  },
-  {
-    q: "Peut-on utiliser SalonSwipe pour plusieurs salons ?",
-    a: "Absolument. Chaque salon est un espace indépendant avec ses propres exposants, votes et classements.",
-  },
-];
-
-function FaqItem({ q, a }: { q: string; a: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="border-b border-white/10">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between py-5 text-left gap-4"
-      >
-        <span className="font-semibold text-white text-sm md:text-base">{q}</span>
-        <ChevronDown className={`w-5 h-5 text-blue-400 flex-shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <p className="pb-5 text-sm text-slate-400 leading-relaxed">{a}</p>
-      )}
-    </div>
-  );
-}
-
-export default function Landing() {
-  const [, navigate] = useLocation();
-
-  const handleLogin = () => {
-    window.location.href = getLoginUrl();
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!email) return;
+    joinWaitlist.mutate({ email, name, company });
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e] text-white overflow-x-hidden">
-      {/* ─── NAV ─── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#0a0f1e]/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="w-full max-w-md bg-[#111827] border border-white/10 rounded-2xl p-8 relative"
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {done ? (
+          <div className="text-center py-4">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
             </div>
-            <span className="font-black text-lg tracking-tight">
-              Salon<span className="text-blue-400">Swipe</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
+            <h3 className="text-xl font-black text-white mb-2">Vous êtes sur la liste !</h3>
+            <p className="text-slate-400 text-sm">Nous vous contacterons dès que votre accès sera disponible.</p>
             <button
-              onClick={handleLogin}
-              className="text-sm text-slate-400 hover:text-white transition-colors hidden sm:block"
+              onClick={onClose}
+              className="mt-6 px-6 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-medium hover:bg-white/10 transition-colors"
             >
-              Se connecter
-            </button>
-            <button
-              onClick={handleLogin}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors"
-            >
-              Commencer
-              <ArrowRight className="w-4 h-4" />
+              Fermer
             </button>
           </div>
+        ) : (
+          <>
+            <div className="mb-6">
+              <h3 className="text-xl font-black text-white mb-1">Rejoindre la liste d'attente</h3>
+              <p className="text-slate-400 text-sm">Soyez parmi les premiers à accéder à SalonSwipe.</p>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <input
+                type="email"
+                required
+                placeholder="Email professionnel *"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
+              />
+              <input
+                type="text"
+                placeholder="Prénom et nom"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
+              />
+              <input
+                type="text"
+                placeholder="Entreprise"
+                value={company}
+                onChange={e => setCompany(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={joinWaitlist.isPending || !email}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
+              >
+                {joinWaitlist.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>Rejoindre la liste <ArrowRight className="w-4 h-4" /></>
+                )}
+              </button>
+            </form>
+          </>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+const FEATURES = [
+  { emoji: "⚡", title: "Swipe en équipe", desc: "Évaluez chaque exposant en quelques secondes. Like, Super Like ou Skip." },
+  { emoji: "🗺️", title: "Parcours optimisé", desc: "Chemin de visite intelligent par hall, basé sur vos favoris." },
+  { emoji: "🤖", title: "Insights IA", desc: "Tendances, rapports exportables, recommandations personnalisées." },
+];
+
+export default function Landing() {
+  const [, navigate] = useLocation();
+  const [showWaitlist, setShowWaitlist] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-[#080d1a] text-white flex flex-col overflow-x-hidden">
+      {/* Background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-blue-700/20 rounded-full blur-[140px]" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-violet-700/10 rounded-full blur-[100px]" />
+      </div>
+
+      {/* Nav */}
+      <nav className="relative z-10 flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-600/30">
+            <Zap className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-black text-lg tracking-tight">
+            Salon<span className="text-blue-400">Swipe</span>
+          </span>
         </div>
+        <button
+          onClick={() => window.location.href = getLoginUrl()}
+          className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1.5"
+        >
+          Se connecter <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </nav>
 
-      {/* ─── HERO ─── */}
-      <section className="relative pt-32 pb-24 px-4 overflow-hidden">
-        {/* Background glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]" />
-          <div className="absolute top-40 left-1/4 w-[300px] h-[300px] bg-violet-600/15 rounded-full blur-[80px]" />
-        </div>
-
-        <div className="relative max-w-4xl mx-auto text-center">
+      {/* Hero */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-16 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-2xl mx-auto"
+        >
           {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-semibold mb-8"
-          >
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-400 text-xs font-semibold mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
             Préparez vos salons professionnels
-          </motion.div>
+          </div>
 
           {/* Headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] mb-6"
-          >
-            Swipez les exposants.{" "}
-            <span className="bg-gradient-to-r from-blue-400 via-blue-300 to-violet-400 bg-clip-text text-transparent">
+          <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.02] mb-6">
+            Swipez.{" "}
+            <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
               Visitez les meilleurs.
             </span>
-          </motion.h1>
+          </h1>
 
-          {/* Subheadline */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed"
-          >
-            SalonSwipe transforme la préparation de vos salons professionnels. Évaluez les exposants en équipe, générez un parcours optimisé et obtenez des insights IA — en quelques minutes.
-          </motion.p>
+          <p className="text-lg text-slate-400 max-w-lg mx-auto mb-10 leading-relaxed">
+            Évaluez les exposants en équipe, générez un parcours optimisé et obtenez des insights IA — en quelques minutes.
+          </p>
 
-          {/* CTA */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
+          {/* CTA buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={handleLogin}
-              className="flex items-center gap-2.5 px-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base shadow-lg shadow-blue-600/30 transition-all hover:scale-105 active:scale-95"
+              onClick={() => window.location.href = getLoginUrl()}
+              className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base shadow-xl shadow-blue-600/25 transition-all hover:scale-105 active:scale-95"
             >
               Accéder à la plateforme
               <ArrowRight className="w-5 h-5" />
             </button>
             <button
-              onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
-              className="flex items-center gap-2 px-6 py-4 rounded-2xl border border-white/10 text-slate-300 hover:text-white hover:border-white/20 text-sm font-medium transition-all"
+              onClick={() => setShowWaitlist(true)}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl border border-white/15 text-slate-300 hover:text-white hover:border-white/30 text-base font-medium transition-all"
             >
-              Découvrir les fonctionnalités
+              Rejoindre la liste d'attente
             </button>
-          </motion.div>
-
-          {/* Social proof */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="flex items-center justify-center gap-6 mt-12 text-xs text-slate-500"
-          >
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Gratuit pour commencer</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Sans carte bancaire</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Équipes illimitées</span>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* App preview mockup */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
-          className="relative max-w-xs mx-auto mt-16"
-        >
-          <div className="relative rounded-[2.5rem] bg-gradient-to-b from-slate-800 to-slate-900 border border-white/10 shadow-2xl shadow-blue-900/40 p-4 overflow-hidden">
-            {/* Phone notch */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-[#0a0f1e] rounded-b-2xl z-10" />
-            {/* Mock swipe card */}
-            <div className="mt-4 rounded-2xl bg-gradient-to-br from-blue-900/60 to-slate-800 border border-white/10 p-5">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xl">A</div>
-                <div>
-                  <p className="font-bold text-white text-sm">Adoria</p>
-                  <p className="text-xs text-slate-400">Stand C39 · Tier A</p>
-                  <div className="flex gap-1 mt-1">
-                    <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-medium">Food</span>
-                    <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 text-[10px] font-medium">IA</span>
-                  </div>
-                </div>
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">Solution FoodTech N°1 pour la gestion des groupes de restauration...</p>
-              <div className="flex justify-center gap-6 mt-5">
-                <div className="w-12 h-12 rounded-full bg-red-500/20 border-2 border-red-500/40 flex items-center justify-center text-xl">✕</div>
-                <div className="w-12 h-12 rounded-full bg-blue-500/20 border-2 border-blue-500/40 flex items-center justify-center text-xl">★</div>
-                <div className="w-12 h-12 rounded-full bg-green-500/20 border-2 border-green-500/40 flex items-center justify-center text-xl">♥</div>
-              </div>
-            </div>
-            {/* Progress bar */}
-            <div className="mt-3 flex items-center gap-2">
-              <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-blue-500 to-blue-400" />
-              </div>
-              <span className="text-xs text-slate-500">42 restants</span>
-            </div>
           </div>
-          {/* Glow under phone */}
-          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-48 h-12 bg-blue-600/30 blur-2xl rounded-full" />
+
+          {/* Trust */}
+          <div className="flex flex-wrap items-center justify-center gap-5 mt-10 text-xs text-slate-600">
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />Gratuit pour commencer</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />Sans carte bancaire</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />Équipes illimitées</span>
+          </div>
         </motion.div>
-      </section>
 
-      {/* ─── FEATURES ─── */}
-      <section id="features" className="py-24 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-blue-400 text-sm font-semibold uppercase tracking-widest mb-3">Fonctionnalités</p>
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">
-              Tout ce qu'il vous faut pour{" "}
-              <span className="text-blue-400">préparer un salon</span>
-            </h2>
-            <p className="text-slate-400 max-w-xl mx-auto">
-              De l'évaluation des exposants à la génération du parcours, SalonSwipe couvre tout le workflow de préparation.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {FEATURES.map((f, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.08 }}
-                className="group p-6 rounded-2xl bg-white/3 border border-white/8 hover:border-blue-500/30 hover:bg-white/5 transition-all"
-              >
-                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-4 shadow-lg`}>
-                  <f.icon className="w-5 h-5 text-white" />
-                </div>
-                <h3 className="font-bold text-white mb-2">{f.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{f.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── HOW IT WORKS ─── */}
-      <section className="py-24 px-4 bg-gradient-to-b from-transparent via-blue-950/20 to-transparent">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-blue-400 text-sm font-semibold uppercase tracking-widest mb-3">Comment ça marche</p>
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight">
-              Prêt en <span className="text-blue-400">3 étapes</span>
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { step: "01", title: "Créez votre équipe", desc: "Invitez vos collègues via un lien unique. Chacun vote depuis son téléphone." },
-              { step: "02", title: "Swipez les exposants", desc: "Évaluez chaque exposant en quelques secondes. Like, Super Like ou Skip." },
-              { step: "03", title: "Visitez les meilleurs", desc: "Générez votre parcours optimisé et exportez le rapport pour toute l'équipe." },
-            ].map((s, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.15 }}
-                className="text-center"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-black text-blue-400">{s.step}</span>
-                </div>
-                <h3 className="font-bold text-white mb-2">{s.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{s.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── TESTIMONIALS ─── */}
-      <section className="py-24 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-blue-400 text-sm font-semibold uppercase tracking-widest mb-3">Témoignages</p>
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight">
-              Ils préparent leurs salons{" "}
-              <span className="text-blue-400">différemment</span>
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {TESTIMONIALS.map((t, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="p-6 rounded-2xl bg-white/3 border border-white/8"
-              >
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: t.stars }).map((_, j) => (
-                    <Star key={j} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-                <p className="text-sm text-slate-300 leading-relaxed mb-5">"{t.text}"</p>
-                <div>
-                  <p className="font-bold text-white text-sm">{t.name}</p>
-                  <p className="text-xs text-slate-500">{t.role}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── FAQ ─── */}
-      <section className="py-24 px-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-blue-400 text-sm font-semibold uppercase tracking-widest mb-3">FAQ</p>
-            <h2 className="text-3xl md:text-4xl font-black tracking-tight">Questions fréquentes</h2>
-          </div>
-          {FAQ.map((item, i) => (
-            <FaqItem key={i} q={item.q} a={item.a} />
+        {/* Features strip */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mt-20 w-full"
+        >
+          {FEATURES.map((f, i) => (
+            <div
+              key={i}
+              className="p-5 rounded-2xl bg-white/3 border border-white/8 text-left"
+            >
+              <span className="text-2xl mb-3 block">{f.emoji}</span>
+              <p className="font-bold text-white text-sm mb-1">{f.title}</p>
+              <p className="text-xs text-slate-500 leading-relaxed">{f.desc}</p>
+            </div>
           ))}
-        </div>
-      </section>
+        </motion.div>
+      </main>
 
-      {/* ─── CTA FINAL ─── */}
-      <section className="py-24 px-4">
-        <div className="max-w-3xl mx-auto text-center">
-          <div className="relative p-10 md:p-16 rounded-3xl bg-gradient-to-br from-blue-600/20 via-blue-800/10 to-violet-600/20 border border-blue-500/20 overflow-hidden">
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-blue-600/20 rounded-full blur-3xl" />
-            </div>
-            <div className="relative">
-              <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">
-                Prêt à transformer votre{" "}
-                <span className="text-blue-400">prochain salon</span> ?
-              </h2>
-              <p className="text-slate-400 mb-8 max-w-lg mx-auto">
-                Rejoignez les équipes qui préparent leurs salons professionnels avec SalonSwipe.
-              </p>
-              <button
-                onClick={handleLogin}
-                className="inline-flex items-center gap-2.5 px-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base shadow-lg shadow-blue-600/30 transition-all hover:scale-105 active:scale-95"
-              >
-                Commencer maintenant
-                <ArrowRight className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── FOOTER ─── */}
-      <footer className="border-t border-white/5 py-10 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="font-black text-sm tracking-tight">
-              Salon<span className="text-blue-400">Swipe</span>
-            </span>
-          </div>
-          <p className="text-xs text-slate-600">© 2026 SalonSwipe. Tous droits réservés.</p>
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-white/5 py-6 px-6">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <span className="text-xs text-slate-700">© 2026 SalonSwipe</span>
           <button
-            onClick={handleLogin}
-            className="text-xs text-slate-500 hover:text-blue-400 transition-colors"
+            onClick={() => setShowWaitlist(true)}
+            className="text-xs text-slate-600 hover:text-blue-400 transition-colors"
           >
-            Se connecter →
+            Liste d'attente
           </button>
         </div>
       </footer>
+
+      {/* Waitlist modal */}
+      <AnimatePresence>
+        {showWaitlist && <WaitlistModal onClose={() => setShowWaitlist(false)} />}
+      </AnimatePresence>
     </div>
   );
 }

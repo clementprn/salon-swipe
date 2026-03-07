@@ -29,6 +29,13 @@
       "when": 1772637910576,
       "tag": "0003_cool_goblin_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1772914099535,
+      "tag": "0004_keen_gladiator",
+      "breakpoints": true
     }
   ]
 }

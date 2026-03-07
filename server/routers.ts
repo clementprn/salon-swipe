@@ -10,11 +10,31 @@ import {
   castVote, deleteVote, deleteAllVotes, getLastVote, getMyVotes, getTeamVotes, getVoteStats,
   getTeams, createTeam, joinTeam, getMyTeam, createInviteToken, resolveInviteToken,
   getVoteStatsForAI,
+  joinWaitlist,
 } from "./db";
 import { invokeLLM } from "./_core/llm";
+import { notifyOwner } from "./_core/notification";
 
 export const appRouter = router({
   system: systemRouter,
+
+  // ── Waitlist ──────────────────────────────────────────
+  waitlist: router({
+    join: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+        name: z.string().optional(),
+        company: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        await joinWaitlist({ email: input.email, name: input.name, company: input.company });
+        await notifyOwner({
+          title: "Nouvelle inscription liste d'attente",
+          content: `Email: ${input.email}${input.name ? ` | Nom: ${input.name}` : ''}${input.company ? ` | Entreprise: ${input.company}` : ''}`,
+        }).catch(() => {});
+        return { success: true };
+      }),
+  }),
 
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

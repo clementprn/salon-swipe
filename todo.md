@@ -87,3 +87,9 @@
 - [x] Boutons SSO Google / Microsoft / Apple (visuellement intégrés, redirigent vers Manus OAuth)
 - [x] Protection de la plateforme : /app redirige vers /login si non connecté
 - [x] Navigation landing → connexion → plateforme (/app)
+
+## Refonte landing & améliorations globales (v1.6)
+- [x] Landing courte et percutante : hero + 2 CTA (liste d'attente + connexion)
+- [x] Liste d'attente : formulaire email + stockage DB + notification owner
+- [x] Corriger le flux de connexion (callback OAuth redirige vers /app)
+- [x] Analyse globale et corrections UX/bugs

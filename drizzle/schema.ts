@@ -110,3 +110,14 @@ export const inviteTokens = mysqlTable("inviteTokens", {
 });
 
 export type InviteToken = typeof inviteTokens.$inferSelect;
+
+// ── Liste d'attente ──────────────────────────────────────────
+export const waitlist = mysqlTable("waitlist", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  name: varchar("name", { length: 255 }),
+  company: varchar("company", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type WaitlistEntry = typeof waitlist.$inferSelect;

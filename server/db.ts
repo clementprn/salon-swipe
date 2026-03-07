@@ -1,6 +1,6 @@
 import { eq, and, ne, notInArray, desc, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, events, exhibitors, votes, teams, teamMembers, inviteTokens } from "../drizzle/schema";
+import { InsertUser, users, events, exhibitors, votes, teams, teamMembers, inviteTokens, waitlist } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -516,4 +516,22 @@ export async function getVoteStatsForAI(userId: number, eventId?: number) {
     }, {}),
     myVotes: myVotesData,
   };
+}
+
+// ── Liste d'attente ──────────────────────────────────────────
+export async function joinWaitlist(data: { email: string; name?: string; company?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Check if already registered
+  const existing = await db.select().from(waitlist).where(eq(waitlist.email, data.email)).limit(1);
+  if (existing.length > 0) {
+    throw new Error("Cet email est déjà sur la liste d'attente.");
+  }
+
+  await db.insert(waitlist).values({
+    email: data.email,
+    name: data.name ?? null,
+    company: data.company ?? null,
+  });
 }
