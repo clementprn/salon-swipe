@@ -1,0 +1,2303 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+  <title>SalonSwipe — Préparez vos salons professionnels</title>
+  <meta name="description" content="SalonSwipe aide les équipes à préparer, gérer et optimiser leur visite des salons professionnels : swipe des exposants, planification de parcours, classement d'équipe et insights IA. Démo autonome avec données fictives." />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#3b5bdb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          borderRadius: {
+            sm: 'calc(var(--radius) - 4px)',
+            md: 'calc(var(--radius) - 2px)',
+            lg: 'var(--radius)',
+            xl: 'calc(var(--radius) + 4px)',
+          },
+          colors: {
+            background: 'var(--background)',
+            foreground: 'var(--foreground)',
+            card: 'var(--card)',
+            'card-foreground': 'var(--card-foreground)',
+            popover: 'var(--popover)',
+            'popover-foreground': 'var(--popover-foreground)',
+            primary: 'var(--primary)',
+            'primary-foreground': 'var(--primary-foreground)',
+            secondary: 'var(--secondary)',
+            'secondary-foreground': 'var(--secondary-foreground)',
+            muted: 'var(--muted)',
+            'muted-foreground': 'var(--muted-foreground)',
+            accent: 'var(--accent)',
+            'accent-foreground': 'var(--accent-foreground)',
+            destructive: 'var(--destructive)',
+            'destructive-foreground': 'var(--destructive-foreground)',
+            border: 'var(--border)',
+            input: 'var(--input)',
+            ring: 'var(--ring)',
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    :root {
+      --primary: #1d4ed8;
+      --primary-foreground: #eff6ff;
+      --radius: 0.65rem;
+      --background: #ffffff;
+      --foreground: #292520;
+      --card: #ffffff;
+      --card-foreground: #292520;
+      --popover: #ffffff;
+      --popover-foreground: #292520;
+      --secondary: #fafafa;
+      --secondary-foreground: #55524d;
+      --muted: #f4f4f5;
+      --muted-foreground: #86858c;
+      --accent: #f4f4f5;
+      --accent-foreground: #1c1c1f;
+      --destructive: #dc3d33;
+      --destructive-foreground: #fafafa;
+      --border: #e7e7ea;
+      --input: #e7e7ea;
+      --ring: #6798f0;
+    }
+
+    * { border-color: var(--border); }
+    html, body { background: var(--background); color: var(--foreground); overscroll-behavior: none; }
+    body { font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    button:not(:disabled), a[href] { cursor: pointer; }
+
+    .swipe-card { touch-action: none; user-select: none; -webkit-user-select: none; will-change: transform; }
+    .card-stack-1 { transform: rotate(-2deg) scale(0.97) translateY(8px); }
+    .card-stack-2 { transform: rotate(1deg) scale(0.94) translateY(16px); }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .line-clamp-4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script>window.react = window.React;</script>
+  <script src="https://unpkg.com/framer-motion@11.11.17/dist/framer-motion.js"></script>
+  <script src="https://unpkg.com/lucide-react@0.469.0/dist/umd/lucide-react.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.9/babel.min.js"></script>
+</head>
+<body class="bg-background text-foreground">
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useCallback, useRef, createContext, useContext } = React;
+const { createRoot } = ReactDOM;
+const { motion, AnimatePresence, useMotionValue, useTransform, useAnimation } = Motion;
+const {
+  Zap, ArrowRight, ArrowLeft, CheckCircle2, X, Loader2, ChevronLeft, ChevronDown, ChevronUp,
+  RotateCcw, Users, User, LogOut, BarChart3, Navigation, Bot, Download, Info, UserPlus,
+  MapPin, Star, Heart, ExternalLink, Globe, Trophy, Medal, Award, Trash2, Route, CheckSquare,
+  Square, Clock, Shuffle, Send, Sparkles, FileText, Plus, Link2,
+  Copy, Check, LogIn, Crown, Mail, Calendar, AlertCircle,
+} = LucideReact;
+const ArrowRightIcon = ArrowRight;
+
+/* ════════════════════════════════════════════════════════════════
+   DEMO DATA — real event metadata from the production app, plus a
+   hand-built representative exhibitor set (this standalone build has
+   no access to the live database, so the original 470-exhibitor
+   dataset can't be pulled in — this is a realistic stand-in).
+   ════════════════════════════════════════════════════════════════ */
+
+const EVENTS = [
+  {
+    id: 1, name: "FHT 2026 - Food Hotel Tech", slug: "fht-2026",
+    location: "Paris Expo Porte de Versailles", startDate: "2026-06-09", endDate: "2026-06-11",
+    description: "Le salon de référence des technologies pour la restauration, l'hôtellerie et le tourisme.",
+    color: "#C0392B", isActive: true,
+  },
+  {
+    id: 2, name: "TechInnov 2026", slug: "techinnov-2026",
+    location: "Paris-Saclay", startDate: "2026-03-24", endDate: "2026-03-24",
+    description: "Le salon des startups deeptech et des grands groupes innovants : IA, robotique, healthtech, greentech.",
+    color: "#2C3E7A", isActive: true,
+  },
+];
+
+const TIER_SCORE = { A: 88, B: 70, C: 45, D: 20 };
+
+function mkExhibitor(id, eventId, name, stand, tier, sector, tags, desc, reason, hasSite) {
+  return {
+    id, eventId, name, stand,
+    website: hasSite ? `https://example.com/${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` : null,
+    description: desc,
+    shortDescription: desc.length > 140 ? desc.slice(0, 137) + "..." : desc,
+    sector, themes: sector,
+    tier, sodexoScore: TIER_SCORE[tier] + (id % 12),
+    sodexoReason: reason,
+    thematicTags: JSON.stringify(tags),
+  };
+}
+
+const EXHIBITORS = [
+  // ── FHT 2026 (eventId 1) ──────────────────────────────────────
+  mkExhibitor(101, 1, "NutriGest", "A12", "A", "Nutrition & IA", ["🍽️ Food", "📊 Data & Analytics"],
+    "Solution IA de gestion nutritionnelle pour la restauration collective, avec calcul automatique des apports et suivi des allergènes.",
+    "Levier direct pour la conformité nutritionnelle des cuisines Sodexo et la réduction du gaspillage.", true),
+  mkExhibitor(102, 1, "CleanKitchen Robotics", "A18", "B", "Robotique", ["🤖 Robotique & IA"],
+    "Robots de nettoyage autonomes conçus pour les cuisines professionnelles à forte cadence.",
+    "Réduction du temps d'entretien et amélioration de l'hygiène sur les sites de restauration collective.", true),
+  mkExhibitor(103, 1, "TableConnect", "B5", "B", "Logiciel hôtellerie", ["🏨 Hospitality", "💳 Paiement & POS"],
+    "Plateforme de réservation et de gestion de tables en temps réel pour restaurants et hôtels.",
+    "Optimisation du taux de remplissage des espaces de restauration.", false),
+  mkExhibitor(104, 1, "GreenPlate", "B14", "C", "Emballage durable", ["🌱 RSE & GreenTech"],
+    "Fournisseur d'emballages alimentaires biodégradables et compostables pour la vente à emporter.",
+    "Aligné avec les engagements RSE de réduction du plastique à usage unique.", true),
+  mkExhibitor(105, 1, "StaffShift", "C2", "B", "RH", ["👥 RH & Opérations"],
+    "Application de planning et de gestion des remplacements pour les équipes en restauration collective.",
+    "Simplifie la gestion RH multi-sites et réduit l'absentéisme non couvert.", false),
+  mkExhibitor(106, 1, "QuickPay POS", "C9", "A", "Paiement", ["💳 Paiement & POS"],
+    "Terminal de paiement sans contact nouvelle génération avec encaissement unifié multi-devises.",
+    "Accélère le passage en caisse et s'intègre aux cartes de paiement repas.", true),
+  mkExhibitor(107, 1, "HotelSense IoT", "D3", "B", "IoT", ["🌱 RSE & GreenTech", "🏨 Hospitality"],
+    "Capteurs IoT pour le pilotage énergétique en temps réel des chambres et espaces communs.",
+    "Réduction mesurable de la consommation énergétique sur les sites gérés.", false),
+  mkExhibitor(108, 1, "ChefAI", "D11", "A", "Foodtech", ["🍽️ Food", "🤖 Robotique & IA"],
+    "Assistant IA de création de menus équilibrés avec calcul automatique HACCP et coûts matière.",
+    "Accélère la conception de menus conformes tout en maîtrisant le coût denrée.", true),
+  mkExhibitor(109, 1, "WellBreak", "E1", "C", "QVT", ["🧘 Wellness", "👥 RH & Opérations"],
+    "Solution de suivi du bien-être et de la charge de travail des équipes en cuisine.",
+    "Soutient la démarche de prévention des risques psychosociaux en cuisine.", false),
+  mkExhibitor(110, 1, "StockWise", "E7", "B", "Supply chain", ["🍽️ Food", "📊 Data & Analytics"],
+    "Prévision des stocks alimentaires par intelligence artificielle pour limiter les ruptures et le gaspillage.",
+    "Impact direct sur la réduction du gaspillage alimentaire, priorité Sodexo.", true),
+  mkExhibitor(111, 1, "LoyaltyLoop", "F4", "C", "Marketing", ["💳 Paiement & POS"],
+    "Programme de fidélité digital personnalisable pour restaurants et cafétérias d'entreprise.",
+    "Renforce l'engagement des convives sur les sites de restauration collective.", false),
+  mkExhibitor(112, 1, "EcoLaundry", "F12", "D", "Équipement", ["🌱 RSE & GreenTech"],
+    "Blanchisserie industrielle basse consommation d'eau et d'énergie pour hôtels et cliniques.",
+    "Réduction de la consommation d'eau, alignée avec les objectifs environnementaux.", false),
+  mkExhibitor(113, 1, "GuestFlow", "G3", "B", "Hospitality tech", ["🏨 Hospitality"],
+    "Application d'accueil et de conciergerie digitale pour fluidifier le parcours client en hôtel.",
+    "Améliore la satisfaction client sur les sites d'hébergement gérés.", true),
+  mkExhibitor(114, 1, "FreshTrace", "G9", "C", "Traçabilité", ["🍽️ Food", "📊 Data & Analytics"],
+    "Traçabilité alimentaire de bout en bout par registre numérique partagé avec les fournisseurs.",
+    "Renforce la sécurité alimentaire et la traçabilité fournisseurs.", false),
+  mkExhibitor(115, 1, "CuisineBot", "H1", "A", "Robotique", ["🤖 Robotique & IA"],
+    "Bras robotisé de préparation culinaire pour cuisine centrale à forte production.",
+    "Gain de productivité significatif sur les lignes de production centralisées.", true),
+  mkExhibitor(116, 1, "SafeServe", "H8", "D", "Formation", ["👥 RH & Opérations"],
+    "Formation en ligne certifiante à l'hygiène alimentaire et aux normes HACCP.",
+    "Facilite la mise en conformité réglementaire des équipes terrain.", false),
+  mkExhibitor(117, 1, "TasteMetrics", "I2", "C", "Data", ["📊 Data & Analytics"],
+    "Analyse de la satisfaction client par IA conversationnelle sur les points de restauration.",
+    "Donne une visibilité fine sur la satisfaction convives site par site.", false),
+  mkExhibitor(118, 1, "VeggiePrep", "I10", "B", "Équipement cuisine", ["🤖 Robotique & IA", "🍽️ Food"],
+    "Machine de découpe automatisée de légumes pour cuisines centrales à haut volume.",
+    "Réduit le temps de préparation et la pénibilité en cuisine.", true),
+  mkExhibitor(119, 1, "RoomSync PMS", "J4", "A", "PMS", ["🏨 Hospitality", "📊 Data & Analytics"],
+    "Système de gestion hôtelière tout-en-un : réservations, facturation et reporting unifiés.",
+    "Simplifie le pilotage multi-établissements des sites hôteliers gérés.", true),
+  mkExhibitor(120, 1, "CarbonMenu", "J11", "C", "RSE", ["🌱 RSE & GreenTech", "🍽️ Food"],
+    "Calculateur d'empreinte carbone des menus avec suggestions de substitution bas-carbone.",
+    "Outil concret pour piloter la trajectoire bas-carbone des menus.", false),
+
+  // ── TechInnov 2026 (eventId 2) ────────────────────────────────
+  mkExhibitor(201, 2, "NeuroSight", "A3", "A", "Healthtech", ["🧘 Wellness", "🤖 Robotique & IA"],
+    "Diagnostic médical assisté par IA pour l'analyse d'imagerie en temps réel.",
+    "Applications potentielles pour les offres santé et prévention au travail.", true),
+  mkExhibitor(202, 2, "SwarmBots", "A9", "A", "Robotique", ["🤖 Robotique & IA"],
+    "Essaims de micro-robots autonomes pour l'inspection d'infrastructures industrielles.",
+    "Cas d'usage pertinent pour la maintenance des sites industriels gérés.", false),
+  mkExhibitor(203, 2, "HydroGen Labs", "B2", "B", "Greentech", ["🌱 RSE & GreenTech"],
+    "Production d'hydrogène vert décentralisée pour sites industriels et logistiques.",
+    "S'inscrit dans la trajectoire de décarbonation énergétique.", true),
+  mkExhibitor(204, 2, "DataForge", "B7", "B", "Data & IA", ["📊 Data & Analytics", "🤖 Robotique & IA"],
+    "Plateforme MLOps pour industrialiser le déploiement de modèles d'intelligence artificielle.",
+    "Accélérateur potentiel pour les projets data internes.", false),
+  mkExhibitor(205, 2, "CareLoop", "C1", "A", "Healthtech", ["🧘 Wellness"],
+    "Suivi à distance de patients chroniques par capteurs connectés et alertes proactives.",
+    "Synergies possibles avec les offres de bien-être et de prévention santé.", true),
+  mkExhibitor(206, 2, "AgriDrone", "C6", "B", "Agritech", ["🌱 RSE & GreenTech", "🤖 Robotique & IA"],
+    "Drones agricoles pour l'analyse des sols et le suivi des cultures en circuit court.",
+    "Pertinent pour les filières d'approvisionnement local et durable.", false),
+  mkExhibitor(207, 2, "QuantumEdge", "D2", "D", "Deeptech", ["🔧 Autre"],
+    "Puces de calcul quantique embarqué pour applications de cryptographie avancée.",
+    "Technologie prometteuse mais sans cas d'usage direct à court terme.", false),
+  mkExhibitor(208, 2, "PayFlux", "D8", "C", "Fintech", ["💳 Paiement & POS"],
+    "Infrastructure de paiement API-first destinée aux plateformes fintech et marketplaces.",
+    "Peut nourrir la réflexion sur les moyens de paiement dématérialisés.", true),
+  mkExhibitor(209, 2, "SkillForge RH", "E3", "C", "RH", ["👥 RH & Opérations", "🤖 Robotique & IA"],
+    "Plateforme de formation adaptative pilotée par IA selon le niveau de chaque collaborateur.",
+    "Applicable aux parcours de formation interne des équipes terrain.", false),
+  mkExhibitor(210, 2, "BioPrint", "E9", "B", "Healthtech", ["🧘 Wellness"],
+    "Bio-impression 3D de tissus destinée à la recherche médicale et pharmaceutique.",
+    "Technologie de rupture, veille stratégique recommandée.", false),
+  mkExhibitor(211, 2, "UrbanGrid", "F1", "B", "Greentech", ["🌱 RSE & GreenTech"],
+    "Optimisation énergétique en temps réel des bâtiments tertiaires connectés.",
+    "Applicable à la gestion énergétique des sites tertiaires gérés.", true),
+  mkExhibitor(212, 2, "VisionQC", "F6", "A", "Robotique", ["🤖 Robotique & IA", "📊 Data & Analytics"],
+    "Contrôle qualité industriel par vision par ordinateur temps réel.",
+    "Améliore la fiabilité qualité sur les lignes de production partenaires.", true),
+  mkExhibitor(213, 2, "MindBalance", "G2", "C", "QVT", ["🧘 Wellness", "👥 RH & Opérations"],
+    "Application de prévention du burn-out avec suivi de la charge mentale en entreprise.",
+    "Complète naturellement les offres de qualité de vie au travail.", false),
+  mkExhibitor(214, 2, "SecurEdge", "G8", "B", "Cybersécurité", ["📊 Data & Analytics"],
+    "Cybersécurité des objets connectés industriels avec détection d'anomalies en temps réel.",
+    "Sujet de vigilance pour la sécurisation des sites connectés.", false),
+  mkExhibitor(215, 2, "RecycloBot", "H2", "B", "Greentech", ["🌱 RSE & GreenTech", "🤖 Robotique & IA"],
+    "Tri automatisé des déchets par IA embarquée sur ligne de tri industrielle.",
+    "Levier concret pour les objectifs de valorisation des déchets.", true),
+  mkExhibitor(216, 2, "NanoSense", "H9", "D", "Deeptech", ["🔧 Autre"],
+    "Capteurs nanotechnologiques dédiés au suivi fin de la qualité de l'air intérieur.",
+    "Applicable à moyen terme au suivi de la qualité de l'air sur site.", false),
+  mkExhibitor(217, 2, "FleetPilot", "I3", "C", "Mobilité", ["🤖 Robotique & IA", "📊 Data & Analytics"],
+    "Optimisation IA des tournées de flottes de véhicules de livraison.",
+    "Optimisation possible de la logistique de livraison des repas.", false),
+  mkExhibitor(218, 2, "GenomeLink", "I7", "A", "Healthtech", ["🧘 Wellness"],
+    "Séquençage génomique rapide au service de la médecine personnalisée.",
+    "Technologie de fond, à suivre pour les futures offres santé.", true),
+  mkExhibitor(219, 2, "VoltStack", "J1", "B", "Greentech", ["🌱 RSE & GreenTech"],
+    "Batteries à électrolyte solide nouvelle génération pour usages industriels intensifs.",
+    "Pertinent pour l'électrification des flottes et équipements.", false),
+  mkExhibitor(220, 2, "TalentMatch AI", "J8", "C", "RH", ["👥 RH & Opérations", "🤖 Robotique & IA"],
+    "Recrutement augmenté par matching sémantique IA entre profils et besoins métiers.",
+    "Accélérateur potentiel pour le recrutement d'équipes terrain.", false),
+];
+
+const DEMO_TEAMMATES = [
+  { id: 9001, name: "Camille Bernard", email: "camille.bernard@example.com" },
+  { id: 9002, name: "Yanis Morel", email: "yanis.morel@example.com" },
+  { id: 9003, name: "Léa Petit", email: "lea.petit@example.com" },
+];
+
+const DEMO_TEAMS = [
+  { id: 501, name: "Team Achats Sodexo", eventId: 1, createdBy: 9001 },
+  { id: 502, name: "Team Innovation", eventId: 2, createdBy: 9002 },
+];
+
+/* ════════════════════════════════════════════════════════════════
+   LOCAL DATA LAYER — mirrors the shape of the original tRPC/DB API
+   but runs entirely against localStorage. This is what makes the
+   app fully standalone (no backend, no network calls for data).
+   ════════════════════════════════════════════════════════════════ */
+
+const LS = {
+  seeded: "ss_seeded_v1",
+  users: "ss_users",
+  votes: "ss_votes",
+  teams: "ss_teams",
+  members: "ss_members",
+  invites: "ss_invites",
+  waitlist: "ss_waitlist",
+  auth: "ss_auth",
+};
+
+function readJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function writeJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function seedIfNeeded() {
+  if (localStorage.getItem(LS.seeded)) return;
+
+  const rand = mulberry32(20260101);
+  const users = {};
+  DEMO_TEAMMATES.forEach(u => { users[u.id] = u; });
+
+  const votes = [];
+  let voteId = 1;
+  EXHIBITORS.forEach(ex => {
+    DEMO_TEAMMATES.forEach(u => {
+      if (rand() < 0.5) {
+        let type = "like";
+        const r2 = rand();
+        if (ex.tier === "A" && r2 < 0.55) type = "superlike";
+        else if (ex.tier === "D" && r2 < 0.35) type = "dislike";
+        else if (r2 < 0.1) type = "dislike";
+        else if (r2 < 0.28) type = "superlike";
+        const daysAgo = Math.floor(rand() * 5) + 1;
+        const iso = new Date(Date.now() - daysAgo * 86400000).toISOString();
+        votes.push({
+          id: voteId++, userId: u.id, exhibitorId: ex.id, eventId: ex.eventId,
+          voteType: type, note: null, createdAt: iso, updatedAt: iso,
+        });
+      }
+    });
+  });
+
+  const members = [
+    { id: 1, teamId: 501, userId: 9001, eventId: 1 },
+    { id: 2, teamId: 501, userId: 9002, eventId: 1 },
+    { id: 3, teamId: 501, userId: 9003, eventId: 1 },
+    { id: 4, teamId: 502, userId: 9001, eventId: 2 },
+    { id: 5, teamId: 502, userId: 9002, eventId: 2 },
+    { id: 6, teamId: 502, userId: 9003, eventId: 2 },
+  ];
+
+  writeJSON(LS.users, users);
+  writeJSON(LS.votes, votes);
+  writeJSON(LS.teams, DEMO_TEAMS);
+  writeJSON(LS.members, members);
+  writeJSON(LS.invites, []);
+  writeJSON(LS.waitlist, []);
+  localStorage.setItem(LS.seeded, "1");
+}
+
+const db = {
+  getEvents: () => EVENTS,
+  getEventBySlug: (slug) => EVENTS.find(e => e.slug === slug) || null,
+  getExhibitorsByEvent: (eventId) => EXHIBITORS.filter(e => e.eventId === eventId),
+  getExhibitorById: (id) => EXHIBITORS.find(e => e.id === id) || null,
+
+  getUserName: (userId) => {
+    const users = readJSON(LS.users, {});
+    return users[userId]?.name ?? "Anonyme";
+  },
+  registerUser: (user) => {
+    const users = readJSON(LS.users, {});
+    users[user.id] = user;
+    writeJSON(LS.users, users);
+  },
+
+  getSwipeQueue: (userId, eventId, batchSize) => {
+    const all = db.getExhibitorsByEvent(eventId);
+    const votes = readJSON(LS.votes, []);
+    const votedIds = new Set(votes.filter(v => v.userId === userId).map(v => v.exhibitorId));
+    const remaining = all.filter(e => !votedIds.has(e.id));
+    return { queue: remaining.slice(0, batchSize ?? remaining.length), remaining: remaining.length };
+  },
+
+  castVote: (userId, exhibitorId, eventId, voteType) => {
+    const votes = readJSON(LS.votes, []);
+    const now = new Date().toISOString();
+    const idx = votes.findIndex(v => v.userId === userId && v.exhibitorId === exhibitorId);
+    if (idx >= 0) votes[idx] = { ...votes[idx], voteType, updatedAt: now };
+    else {
+      const nextId = (votes.reduce((m, v) => Math.max(m, v.id), 0) || 0) + 1;
+      votes.push({ id: nextId, userId, exhibitorId, eventId, voteType, note: null, createdAt: now, updatedAt: now });
+    }
+    writeJSON(LS.votes, votes);
+  },
+  deleteVote: (userId, exhibitorId) => {
+    const votes = readJSON(LS.votes, []);
+    writeJSON(LS.votes, votes.filter(v => !(v.userId === userId && v.exhibitorId === exhibitorId)));
+  },
+  deleteAllVotes: (userId, eventId) => {
+    const votes = readJSON(LS.votes, []);
+    writeJSON(LS.votes, votes.filter(v => !(v.userId === userId && (!eventId || v.eventId === eventId))));
+  },
+
+  getMyVotes: (userId, eventId) => {
+    const votes = readJSON(LS.votes, []).filter(v => v.userId === userId && (!eventId || v.eventId === eventId));
+    return votes
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+      .map(v => ({ ...v, exhibitor: db.getExhibitorById(v.exhibitorId) }));
+  },
+
+  getTeamVotes: (eventId) => {
+    const votes = readJSON(LS.votes, []).filter(v => !eventId || v.eventId === eventId);
+    const users = readJSON(LS.users, {});
+    return votes
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+      .map(v => ({
+        ...v,
+        exhibitor: db.getExhibitorById(v.exhibitorId),
+        user: users[v.userId] ? { id: v.userId, name: users[v.userId].name } : { id: v.userId, name: "Anonyme" },
+      }));
+  },
+
+  getVoteStats: (eventId) => {
+    const votes = readJSON(LS.votes, []).filter(v => !eventId || v.eventId === eventId);
+    const users = readJSON(LS.users, {});
+    const total = votes.length;
+    const likes = votes.filter(v => v.voteType === "like").length;
+    const superlikes = votes.filter(v => v.voteType === "superlike").length;
+    const dislikes = votes.filter(v => v.voteType === "dislike").length;
+
+    const byTier = {};
+    votes.forEach(v => {
+      const ex = db.getExhibitorById(v.exhibitorId);
+      if (!ex) return;
+      byTier[ex.tier] = byTier[ex.tier] || {};
+      byTier[ex.tier][v.voteType] = (byTier[ex.tier][v.voteType] || 0) + 1;
+    });
+
+    const byUserMap = {};
+    votes.forEach(v => {
+      if (!byUserMap[v.userId]) {
+        byUserMap[v.userId] = { userId: v.userId, userName: users[v.userId]?.name ?? "Anonyme", total: 0, likes: 0, superlikes: 0, dislikes: 0 };
+      }
+      byUserMap[v.userId].total++;
+      byUserMap[v.userId][v.voteType === "like" ? "likes" : v.voteType === "superlike" ? "superlikes" : "dislikes"]++;
+    });
+
+    return { total, likes, superlikes, dislikes, byTier, byUser: Object.values(byUserMap) };
+  },
+
+  exportCsv: (userId, eventId, scope) => {
+    const data = scope === "team" ? db.getTeamVotes(eventId) : db.getMyVotes(userId, eventId);
+    const header = "Exposant,Stand,Tier,Vote,Note,Votant,Date";
+    const rows = data.map(v => [
+      `"${(v.exhibitor?.name ?? "").replace(/"/g, '""')}"`,
+      `"${(v.exhibitor?.stand ?? "").replace(/"/g, '""')}"`,
+      v.exhibitor?.tier ?? "",
+      v.voteType,
+      `"${(v.note ?? "").replace(/"/g, '""')}"`,
+      `"${(v.user?.name ?? "Moi").replace(/"/g, '""')}"`,
+      new Date(v.createdAt).toLocaleDateString("fr-FR"),
+    ].join(","));
+    return { csv: [header, ...rows].join("\n"), count: data.length };
+  },
+
+  getTeams: (eventId) => readJSON(LS.teams, []).filter(t => t.eventId === eventId),
+  getMyTeam: (userId, eventId) => {
+    const members = readJSON(LS.members, []);
+    const membership = members.find(m => m.userId === userId && m.eventId === eventId);
+    if (!membership) return null;
+    const team = readJSON(LS.teams, []).find(t => t.id === membership.teamId);
+    if (!team) return null;
+    const users = readJSON(LS.users, {});
+    const teamMembers = members
+      .filter(m => m.teamId === team.id && m.eventId === eventId)
+      .map(m => ({ id: m.userId, name: users[m.userId]?.name ?? "Anonyme", email: users[m.userId]?.email ?? null }));
+    return { ...team, members: teamMembers };
+  },
+  createTeam: (userId, name, eventId) => {
+    const teams = readJSON(LS.teams, []);
+    const id = (teams.reduce((m, t) => Math.max(m, t.id), 0) || 0) + 1;
+    const team = { id, name, eventId, createdBy: userId };
+    teams.push(team);
+    writeJSON(LS.teams, teams);
+    const members = readJSON(LS.members, []);
+    const mid = (members.reduce((m, x) => Math.max(m, x.id), 0) || 0) + 1;
+    members.push({ id: mid, teamId: id, userId, eventId });
+    writeJSON(LS.members, members);
+    return team;
+  },
+  joinTeam: (userId, teamId, eventId) => {
+    const members = readJSON(LS.members, []);
+    const idx = members.findIndex(m => m.userId === userId && m.eventId === eventId);
+    if (idx >= 0) members[idx] = { ...members[idx], teamId };
+    else {
+      const mid = (members.reduce((m, x) => Math.max(m, x.id), 0) || 0) + 1;
+      members.push({ id: mid, teamId, userId, eventId });
+    }
+    writeJSON(LS.members, members);
+    return { success: true, teamId };
+  },
+  createInviteToken: (userId, teamId) => {
+    const invites = readJSON(LS.invites, []);
+    const token = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+    invites.push({ token, teamId, createdBy: userId, expiresAt: Date.now() + 7 * 86400000 });
+    writeJSON(LS.invites, invites);
+    return token;
+  },
+  resolveInviteToken: (userId, token) => {
+    const invites = readJSON(LS.invites, []);
+    const invite = invites.find(i => i.token === token);
+    if (!invite) throw new Error("Lien d'invitation invalide");
+    if (invite.expiresAt < Date.now()) throw new Error("Lien d'invitation expiré");
+    const team = readJSON(LS.teams, []).find(t => t.id === invite.teamId);
+    if (!team) throw new Error("Équipe introuvable");
+    db.joinTeam(userId, invite.teamId, team.eventId);
+    return { success: true, teamId: invite.teamId, teamName: team.name, eventId: team.eventId };
+  },
+
+  joinWaitlist: (email, name, company) => {
+    const list = readJSON(LS.waitlist, []);
+    if (list.some(w => w.email === email)) throw new Error("Cet email est déjà sur la liste d'attente.");
+    list.push({ email, name, company, createdAt: new Date().toISOString() });
+    writeJSON(LS.waitlist, list);
+  },
+};
+
+/* ── Auth (fake, local-only) ──────────────────────────────────── */
+const Auth = {
+  getUser: () => readJSON(LS.auth, null),
+  login: (user) => { db.registerUser(user); writeJSON(LS.auth, user); },
+  logout: () => localStorage.removeItem(LS.auth),
+};
+
+/* ════════════════════════════════════════════════════════════════
+   AI ASSISTANT — answers are computed live from local vote data
+   instead of calling an LLM (this build has no backend to call).
+   ════════════════════════════════════════════════════════════════ */
+
+function parseStand(stand) {
+  if (!stand) return { hall: "Z", num: 9999 };
+  const match = stand.match(/([A-Z]+)\s*(\d+)/i);
+  if (match) return { hall: match[1].toUpperCase(), num: parseInt(match[2], 10) };
+  const numMatch = stand.match(/(\d+)/);
+  if (numMatch) return { hall: "A", num: parseInt(numMatch[1], 10) };
+  return { hall: (stand.charAt(0) || "Z").toUpperCase(), num: 0 };
+}
+
+function groupTeamVotes(eventId) {
+  const teamVotes = db.getTeamVotes(eventId);
+  const byExhibitor = {};
+  teamVotes.forEach(v => {
+    if (!v.exhibitor) return;
+    if (!byExhibitor[v.exhibitorId]) byExhibitor[v.exhibitorId] = { exhibitor: v.exhibitor, votes: [] };
+    byExhibitor[v.exhibitorId].votes.push(v);
+  });
+  return Object.values(byExhibitor).map(g => ({
+    ...g,
+    score: g.votes.reduce((s, v) => s + (v.voteType === "superlike" ? 3 : v.voteType === "like" ? 1 : -1), 0),
+    superlikeCount: g.votes.filter(v => v.voteType === "superlike").length,
+    likeCount: g.votes.filter(v => v.voteType === "like").length,
+    dislikeCount: g.votes.filter(v => v.voteType === "dislike").length,
+    voters: new Set(g.votes.map(v => v.userId)).size,
+  })).sort((a, b) => b.score - a.score);
+}
+
+function fmtList(items) { return items.map((s, i) => `${i + 1}. ${s}`).join("\n"); }
+
+const AI = {
+  topExhibitors(eventId) {
+    const grouped = groupTeamVotes(eventId);
+    if (grouped.length === 0) return "Aucun vote enregistré pour l'instant sur ce salon. Swipez quelques exposants pour que je puisse analyser les tendances !";
+    const top = grouped.slice(0, 5);
+    return `Voici les exposants les mieux notés par l'équipe :\n\n` + fmtList(top.map(g =>
+      `**${g.exhibitor.name}** (Stand ${g.exhibitor.stand ?? "N/A"}, tier ${g.exhibitor.tier}) — ${g.score}pts (${g.superlikeCount}⭐ / ${g.likeCount}✅ / ${g.dislikeCount}❌)`
+    ));
+  },
+  trends(eventId) {
+    const stats = db.getVoteStats(eventId);
+    if (stats.total === 0) return "Pas encore assez de votes pour dégager une tendance. Commencez à swiper !";
+    const posRate = Math.round(((stats.likes + stats.superlikes) / stats.total) * 100);
+    const grouped = groupTeamVotes(eventId);
+    const bestTier = Object.entries(stats.byTier).sort((a, b) => {
+      const scoreA = (a[1].superlike || 0) * 3 + (a[1].like || 0);
+      const scoreB = (b[1].superlike || 0) * 3 + (b[1].like || 0);
+      return scoreB - scoreA;
+    })[0];
+    return `Sur ${stats.total} votes au total, ${posRate}% sont positifs (like ou super like).\n\n` +
+      `Le tier **${bestTier ? bestTier[0] : "B"}** concentre le plus d'intérêt de l'équipe. ` +
+      `L'exposant le plus plébiscité est **${grouped[0]?.exhibitor.name ?? "N/A"}**.`;
+  },
+  mySuperlikes(eventId, userId) {
+    const mine = db.getMyVotes(userId, eventId).filter(v => v.voteType === "superlike" && v.exhibitor);
+    if (mine.length === 0) return "Vous n'avez pas encore mis de super like sur ce salon. Repérez les exposants incontournables en swipant vers le haut !";
+    return `Vos super likes sur ce salon :\n\n` + fmtList(mine.map(v => `**${v.exhibitor.name}** — Stand ${v.exhibitor.stand ?? "N/A"}`));
+  },
+  byTier(eventId) {
+    const stats = db.getVoteStats(eventId);
+    const tiers = ["A", "B", "C", "D"];
+    if (stats.total === 0) return "Aucun vote pour l'instant : impossible de répartir par tier.";
+    const lines = tiers.map(t => {
+      const s = stats.byTier[t] || {};
+      return `**Tier ${t}** — ${s.superlike || 0}⭐ super likes, ${s.like || 0}✅ likes, ${s.dislike || 0}❌ pas intéressé`;
+    });
+    return `Répartition des votes par tier :\n\n${lines.join("\n")}`;
+  },
+  consensus(eventId) {
+    const grouped = groupTeamVotes(eventId).filter(g => g.voters >= 2);
+    if (grouped.length === 0) return "Pas encore assez de recoupement entre votants pour dégager un consensus. Invitez votre équipe à voter !";
+    const top = grouped.slice(0, 5);
+    return `Exposants sur lesquels l'équipe est la plus unanime :\n\n` + fmtList(top.map(g =>
+      `**${g.exhibitor.name}** — ${g.voters} votants, score ${g.score}pts`
+    ));
+  },
+  recommendations(eventId, userId) {
+    const grouped = groupTeamVotes(eventId);
+    const myVotedIds = new Set(db.getMyVotes(userId, eventId).map(v => v.exhibitorId));
+    const reco = grouped.filter(g => !myVotedIds.has(g.exhibitor.id) && g.score > 0).slice(0, 5);
+    if (reco.length === 0) return "Vous avez déjà voté sur tous les exposants les mieux notés par l'équipe. Beau travail !";
+    return `À prioriser lors de votre visite (bien notés par l'équipe, pas encore vus par vous) :\n\n` + fmtList(reco.map(g =>
+      `**${g.exhibitor.name}** — Stand ${g.exhibitor.stand ?? "N/A"}, tier ${g.exhibitor.tier}`
+    ));
+  },
+  stats(eventId) {
+    const stats = db.getVoteStats(eventId);
+    if (stats.total === 0) return "Aucun vote enregistré pour l'instant sur ce salon.";
+    return `**Résumé statistique**\n\n- Total de votes : ${stats.total}\n- Likes : ${stats.likes}\n- Super likes : ${stats.superlikes}\n- Pas intéressé : ${stats.dislikes}\n- Votants actifs : ${stats.byUser.length}`;
+  },
+  sectors(eventId) {
+    const grouped = groupTeamVotes(eventId);
+    const bySector = {};
+    grouped.forEach(g => {
+      const sector = g.exhibitor.sector || "Autre";
+      bySector[sector] = (bySector[sector] || 0) + g.score;
+    });
+    const sorted = Object.entries(bySector).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    if (sorted.length === 0) return "Aucun vote pour l'instant : impossible d'analyser les secteurs.";
+    return `Secteurs les plus plébiscités :\n\n` + fmtList(sorted.map(([sector, score]) => `**${sector}** — ${score}pts cumulés`));
+  },
+  fullReport(eventId, eventName) {
+    const grouped = groupTeamVotes(eventId);
+    const stats = db.getVoteStats(eventId);
+    const date = new Date().toLocaleDateString("fr-FR");
+    if (grouped.length === 0) return `# Rapport — ${eventName}\n\nAucun vote enregistré pour l'instant.`;
+    const consensus = grouped.filter(g => g.voters >= 2).slice(0, 3);
+    const reco = grouped.filter(g => g.score > 0).slice(0, 5);
+    return [
+      `# Rapport complet — ${eventName}`,
+      ``,
+      `*Généré le ${date} · ${stats.total} votes · ${stats.byUser.length} votants*`,
+      ``,
+      `## Classement général`,
+      ``,
+      `| Rang | Exposant | Stand | Tier | Score |`,
+      `|------|----------|-------|------|-------|`,
+      ...grouped.slice(0, 10).map((g, i) => `| ${i + 1} | **${g.exhibitor.name}** | ${g.exhibitor.stand ?? "N/A"} | ${g.exhibitor.tier} | ${g.score}pts |`),
+      ``,
+      `## Tendances`,
+      ``,
+      `- ${stats.likes} likes, ${stats.superlikes} super likes, ${stats.dislikes} pas intéressé`,
+      `- Taux d'avis positif : ${stats.total > 0 ? Math.round(((stats.likes + stats.superlikes) / stats.total) * 100) : 0}%`,
+      ``,
+      `## Consensus d'équipe`,
+      ``,
+      ...(consensus.length > 0 ? consensus.map(g => `- **${g.exhibitor.name}** (${g.voters} votants, ${g.score}pts)`) : ["Pas encore de consensus fort."]),
+      ``,
+      `## Recommandations de visite`,
+      ``,
+      ...(reco.length > 0 ? reco.map((g, i) => `${i + 1}. **${g.exhibitor.name}** — Stand ${g.exhibitor.stand ?? "N/A"}`) : ["Pas encore assez de votes pour recommander un parcours."]),
+    ].join("\n");
+  },
+  visitReport(eventId, eventName, userId) {
+    const date = new Date().toLocaleDateString("fr-FR");
+    let favorites = db.getMyVotes(userId, eventId).filter(v => (v.voteType === "like" || v.voteType === "superlike") && v.exhibitor).map(v => v.exhibitor);
+    if (favorites.length === 0) {
+      favorites = groupTeamVotes(eventId).filter(g => g.score > 0).slice(0, 8).map(g => g.exhibitor);
+    }
+    if (favorites.length === 0) return `# Rapport de visite — ${eventName}\n\nAucun favori pour l'instant. Swipez des exposants pour générer un parcours !`;
+    const byHall = {};
+    favorites.forEach(e => {
+      const hall = parseStand(e.stand).hall;
+      byHall[hall] = byHall[hall] || [];
+      byHall[hall].push(e);
+    });
+    const halls = Object.keys(byHall).sort();
+    return [
+      `# Rapport de préparation de visite — ${eventName}`,
+      ``,
+      `*Généré le ${date} · ${favorites.length} exposants prioritaires*`,
+      ``,
+      ...halls.flatMap(hall => [
+        `## Hall ${hall}`,
+        ``,
+        ...byHall[hall].map(e => `- **${e.name}** — Stand ${e.stand ?? "N/A"} (tier ${e.tier})`),
+        ``,
+      ]),
+    ].join("\n");
+  },
+  fallback() {
+    return "Je peux seulement répondre à partir de vos données de vote et d'exposants pour ce salon. Essayez une des suggestions ci-dessous, ou reformulez votre question autour des votes, tendances ou recommandations !";
+  },
+  answer(message, eventId, eventName, userId) {
+    const m = message.toLowerCase();
+    if (m.includes("rapport complet")) return this.fullReport(eventId, eventName);
+    if (m.includes("rapport") && m.includes("visite")) return this.visitReport(eventId, eventName, userId);
+    if (m.includes("top") || m.includes("mieux notés") || m.includes("classement")) return this.topExhibitors(eventId);
+    if (m.includes("tendance")) return this.trends(eventId);
+    if (m.includes("super like")) return this.mySuperlikes(eventId, userId);
+    if (m.includes("tier")) return this.byTier(eventId);
+    if (m.includes("consensus") || m.includes("unanime")) return this.consensus(eventId);
+    if (m.includes("recommand") || m.includes("prioriser")) return this.recommendations(eventId, userId);
+    if (m.includes("statist") || m.includes("résumé")) return this.stats(eventId);
+    if (m.includes("secteur")) return this.sectors(eventId);
+    return this.fallback();
+  },
+};
+
+function isMarkdownReport(content) {
+  return content.includes("##") || (content.includes("#") && content.length > 300);
+}
+function downloadMarkdown(content, filename) {
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+function downloadCsv(content, filename) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TOAST — minimal stand-in for the original "sonner" library.
+   ════════════════════════════════════════════════════════════════ */
+
+let toastListeners = [];
+const toastState = { items: [] };
+function pushToast(type, message) {
+  const id = Math.random().toString(36).slice(2);
+  toastState.items = [...toastState.items, { id, type, message }];
+  toastListeners.forEach(l => l(toastState.items));
+  setTimeout(() => {
+    toastState.items = toastState.items.filter(t => t.id !== id);
+    toastListeners.forEach(l => l(toastState.items));
+  }, 3200);
+}
+const toast = {
+  success: (msg) => pushToast("success", msg),
+  error: (msg) => pushToast("error", msg),
+};
+
+function Toaster() {
+  const [items, setItems] = useState(toastState.items);
+  useEffect(() => {
+    toastListeners.push(setItems);
+    return () => { toastListeners = toastListeners.filter(l => l !== setItems); };
+  }, []);
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 items-center pointer-events-none">
+      <AnimatePresence>
+        {items.map(t => (
+          <motion.div
+            key={t.id}
+            initial={{ opacity: 0, y: -12, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className={`px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium border pointer-events-auto ${
+              t.type === "success" ? "bg-white text-emerald-700 border-emerald-200" : "bg-white text-red-700 border-red-200"
+            }`}
+          >
+            {t.message}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   AUTH CONTEXT + ROUTER
+   ════════════════════════════════════════════════════════════════ */
+
+const AuthContext = createContext(null);
+function useAuthCtx() { return useContext(AuthContext); }
+
+function useHashRoute() {
+  const [hash, setHash] = useState(window.location.hash || "#/");
+  useEffect(() => {
+    const onChange = () => setHash(window.location.hash || "#/");
+    window.addEventListener("hashchange", onChange);
+    return () => window.removeEventListener("hashchange", onChange);
+  }, []);
+  return hash;
+}
+function navigate(path) { window.location.hash = path; }
+
+/* ════════════════════════════════════════════════════════════════
+   SHARED UI PRIMITIVES
+   ════════════════════════════════════════════════════════════════ */
+
+function Button({ children, variant = "default", size = "default", className = "", ...props }) {
+  const variants = {
+    default: "bg-primary text-primary-foreground hover:opacity-90",
+    outline: "border border-border bg-background hover:bg-accent",
+    ghost: "hover:bg-accent",
+  };
+  const sizes = {
+    default: "h-10 px-4 py-2 text-sm",
+    sm: "h-9 px-3 rounded-lg text-xs",
+  };
+  return (
+    <button
+      className={`inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none ${variants[variant]} ${sizes[size]} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+const TIER_CONFIG = {
+  A: { label: "⭐ Incontournable", bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-300" },
+  B: { label: "✅ Intéressant", bg: "bg-green-50", text: "text-green-800", border: "border-green-300" },
+  C: { label: "👀 À surveiller", bg: "bg-blue-50", text: "text-blue-800", border: "border-blue-300" },
+  D: { label: "⬇️ Faible intérêt", bg: "bg-gray-50", text: "text-gray-600", border: "border-gray-300" },
+};
+
+function SiteEmbedModal({ url, onClose }) {
+  if (!url) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex flex-col"
+    >
+      <div className="flex items-center justify-between p-3 bg-card border-b border-border">
+        <p className="text-sm font-medium truncate flex-1 mr-2">{url}</p>
+        <Button size="sm" variant="ghost" onClick={onClose}>✕ Fermer</Button>
+      </div>
+      <iframe src={url} className="flex-1 w-full bg-white" title="Site exposant" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" />
+    </motion.div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   LANDING
+   ════════════════════════════════════════════════════════════════ */
+
+function WaitlistModal({ onClose }) {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
+  const [done, setDone] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!email) return;
+    setPending(true);
+    try {
+      db.joinWaitlist(email, name, company);
+      setDone(true);
+    } catch (err) {
+      toast.error(err.message || "Une erreur est survenue");
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="w-full max-w-md bg-[#111827] border border-white/10 rounded-2xl p-8 relative"
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">
+          <X className="w-5 h-5" />
+        </button>
+        {done ? (
+          <div className="text-center py-4">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+            </div>
+            <h3 className="text-xl font-black text-white mb-2">Vous êtes sur la liste !</h3>
+            <p className="text-slate-400 text-sm">Nous vous contacterons dès que votre accès sera disponible.</p>
+            <button onClick={onClose} className="mt-6 px-6 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-medium hover:bg-white/10 transition-colors">Fermer</button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-6">
+              <h3 className="text-xl font-black text-white mb-1">Rejoindre la liste d'attente</h3>
+              <p className="text-slate-400 text-sm">Soyez parmi les premiers à accéder à SalonSwipe.</p>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <input type="email" required placeholder="Email professionnel *" value={email} onChange={e => setEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500/50 transition-colors" />
+              <input type="text" placeholder="Prénom et nom" value={name} onChange={e => setName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500/50 transition-colors" />
+              <input type="text" placeholder="Entreprise" value={company} onChange={e => setCompany(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500/50 transition-colors" />
+              <button type="submit" disabled={pending || !email}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors">
+                {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Rejoindre la liste <ArrowRight className="w-4 h-4" /></>}
+              </button>
+            </form>
+          </>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+const FEATURES = [
+  { emoji: "⚡", title: "Swipe en équipe", desc: "Évaluez chaque exposant en quelques secondes. Like, Super Like ou Skip." },
+  { emoji: "🗺️", title: "Parcours optimisé", desc: "Chemin de visite intelligent par hall, basé sur vos favoris." },
+  { emoji: "🤖", title: "Insights IA", desc: "Tendances, rapports exportables, recommandations personnalisées." },
+];
+
+function Landing() {
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  return (
+    <div className="min-h-screen bg-[#080d1a] text-white flex flex-col overflow-x-hidden">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-blue-700/20 rounded-full blur-[140px]" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-violet-700/10 rounded-full blur-[100px]" />
+      </div>
+
+      <nav className="relative z-10 flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-600/30">
+            <Zap className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-black text-lg tracking-tight">Salon<span className="text-blue-400">Swipe</span></span>
+        </div>
+        <button onClick={() => navigate("#/login")} className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1.5">
+          Se connecter <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </nav>
+
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-16 text-center">
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-400 text-xs font-semibold mb-8">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+            Préparez vos salons professionnels · démo
+          </div>
+          <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.02] mb-6">
+            Swipez.{" "}
+            <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">Visitez les meilleurs.</span>
+          </h1>
+          <p className="text-lg text-slate-400 max-w-lg mx-auto mb-10 leading-relaxed">
+            Évaluez les exposants en équipe, générez un parcours optimisé et obtenez des insights IA — en quelques minutes.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button onClick={() => navigate("#/login")}
+              className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base shadow-xl shadow-blue-600/25 transition-all hover:scale-105 active:scale-95">
+              Accéder à la plateforme <ArrowRight className="w-5 h-5" />
+            </button>
+            <button onClick={() => setShowWaitlist(true)}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl border border-white/15 text-slate-300 hover:text-white hover:border-white/30 text-base font-medium transition-all">
+              Rejoindre la liste d'attente
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-5 mt-10 text-xs text-slate-600">
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />Gratuit pour commencer</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />Sans carte bancaire</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />Équipes illimitées</span>
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+          className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mt-20 w-full">
+          {FEATURES.map((f, i) => (
+            <div key={i} className="p-5 rounded-2xl bg-white/3 border border-white/8 text-left">
+              <span className="text-2xl mb-3 block">{f.emoji}</span>
+              <p className="font-bold text-white text-sm mb-1">{f.title}</p>
+              <p className="text-xs text-slate-500 leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </motion.div>
+      </main>
+
+      <footer className="relative z-10 border-t border-white/5 py-6 px-6">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <span className="text-xs text-slate-700">© 2026 SalonSwipe — démo standalone</span>
+          <button onClick={() => setShowWaitlist(true)} className="text-xs text-slate-600 hover:text-blue-400 transition-colors">Liste d'attente</button>
+        </div>
+      </footer>
+
+      <AnimatePresence>{showWaitlist && <WaitlistModal onClose={() => setShowWaitlist(false)} />}</AnimatePresence>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   LOGIN (fake local auth)
+   ════════════════════════════════════════════════════════════════ */
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+  );
+}
+function MicrosoftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
+      <path d="M11.4 2H2v9.4h9.4V2z" fill="#F25022"/>
+      <path d="M22 2h-9.4v9.4H22V2z" fill="#7FBA00"/>
+      <path d="M11.4 12.6H2V22h9.4v-9.4z" fill="#00A4EF"/>
+      <path d="M22 12.6h-9.4V22H22v-9.4z" fill="#FFB900"/>
+    </svg>
+  );
+}
+function AppleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+    </svg>
+  );
+}
+
+function FakeAuthModal({ provider, onClose, onLogin }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const finalName = name.trim() || "Utilisateur Démo";
+    const finalEmail = email.trim() || "demo@example.com";
+    onLogin({ id: 9000, name: finalName, email: finalEmail, loginMethod: provider });
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="w-full max-w-sm bg-[#111827] border border-white/10 rounded-2xl p-8 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+        <h3 className="text-lg font-black text-white mb-1">Connexion — {provider}</h3>
+        <p className="text-slate-400 text-sm mb-6">Démo autonome : aucune authentification réelle n'est effectuée, ce nom sera simplement utilisé localement.</p>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input autoFocus type="text" placeholder="Prénom et nom" value={name} onChange={e => setName(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500/50 transition-colors" />
+          <input type="email" placeholder="Email (optionnel)" value={email} onChange={e => setEmail(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500/50 transition-colors" />
+          <button type="submit" className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors">
+            Continuer <ArrowRight className="w-4 h-4" />
+          </button>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function Login() {
+  const { isAuthenticated, login } = useAuthCtx();
+  const [provider, setProvider] = useState(null);
+
+  useEffect(() => { if (isAuthenticated) navigate("#/app"); }, [isAuthenticated]);
+
+  const handleLogin = (user) => {
+    login(user);
+    setProvider(null);
+    navigate("#/app");
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0a0f1e] text-white flex flex-col">
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-blue-600/15 rounded-full blur-[100px]" />
+      </div>
+
+      <nav className="relative z-10 flex items-center justify-between px-6 py-5">
+        <button onClick={() => navigate("#/")} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm">
+          <ArrowLeft className="w-4 h-4" /> Retour
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
+            <Zap className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span className="font-black text-sm tracking-tight">Salon<span className="text-blue-400">Swipe</span></span>
+        </div>
+        <div className="w-16" />
+      </nav>
+
+      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-12">
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-600/30">
+              <Zap className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-black tracking-tight mb-2">Connexion</h1>
+            <p className="text-slate-400 text-sm">Accédez à votre espace SalonSwipe</p>
+          </div>
+
+          <div className="space-y-3 mb-6">
+            <button onClick={() => setProvider("Google")} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/8 hover:border-white/20 transition-all text-sm font-medium text-white">
+              <GoogleIcon /><span className="flex-1 text-center">Continuer avec Google</span>
+            </button>
+            <button onClick={() => setProvider("Microsoft")} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/8 hover:border-white/20 transition-all text-sm font-medium text-white">
+              <MicrosoftIcon /><span className="flex-1 text-center">Continuer avec Microsoft</span>
+            </button>
+            <button onClick={() => setProvider("Apple")} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/8 hover:border-white/20 transition-all text-sm font-medium text-white">
+              <AppleIcon /><span className="flex-1 text-center">Continuer avec Apple</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1 h-px bg-white/10" /><span className="text-xs text-slate-500">ou</span><div className="flex-1 h-px bg-white/10" />
+          </div>
+
+          <button onClick={() => setProvider("Email")} className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-all shadow-lg shadow-blue-600/20">
+            Continuer avec email
+          </button>
+
+          <p className="text-center text-xs text-slate-600 mt-6 leading-relaxed">
+            Démo standalone — en vous connectant, un profil local est simplement créé dans votre navigateur.
+          </p>
+        </motion.div>
+      </div>
+
+      <AnimatePresence>
+        {provider && <FakeAuthModal provider={provider} onClose={() => setProvider(null)} onLogin={handleLogin} />}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   JOIN TEAM
+   ════════════════════════════════════════════════════════════════ */
+
+function JoinTeam({ query }) {
+  const { isAuthenticated, user } = useAuthCtx();
+  const [status, setStatus] = useState("pending");
+  const [teamName, setTeamName] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const token = new URLSearchParams(query || "").get("token");
+
+  useEffect(() => {
+    if (isAuthenticated && token && status === "pending") {
+      try {
+        const data = db.resolveInviteToken(user.id, token);
+        setTeamName(data.teamName);
+        setStatus("success");
+      } catch (e) {
+        setErrorMsg(e.message);
+        setStatus("error");
+      }
+    }
+  }, [isAuthenticated, token]);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-6 p-8 text-center max-w-sm mx-auto">
+        <div className="text-5xl">🔐</div>
+        <h2 className="text-xl font-bold">Connexion requise</h2>
+        <p className="text-sm text-muted-foreground">Connectez-vous pour rejoindre l'équipe.</p>
+        <Button onClick={() => navigate("#/login")}>Se connecter</Button>
+      </div>
+    );
+  }
+
+  if (!token) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-8 text-center max-w-sm mx-auto">
+        <AlertCircle className="w-16 h-16 text-red-500" />
+        <h2 className="text-xl font-bold">Lien invalide</h2>
+        <p className="text-sm text-muted-foreground">Ce lien d'invitation est incorrect.</p>
+        <Button onClick={() => navigate("#/")}>Retour à l'accueil</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen gap-6 p-8 text-center max-w-sm mx-auto">
+      {status === "pending" && (<><Loader2 className="w-12 h-12 animate-spin text-primary" /><p className="text-sm text-muted-foreground">Traitement de l'invitation...</p></>)}
+      {status === "success" && (
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center gap-4">
+          <CheckCircle2 className="w-20 h-20 text-green-500" />
+          <h2 className="text-2xl font-black">Bienvenue dans l'équipe !</h2>
+          {teamName && (
+            <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-2xl px-4 py-2">
+              <Users className="w-4 h-4 text-primary" /><span className="font-bold text-primary">{teamName}</span>
+            </div>
+          )}
+          <p className="text-sm text-muted-foreground">Vous avez rejoint l'équipe avec succès. Vous pouvez maintenant collaborer sur les votes.</p>
+          <Button onClick={() => navigate("#/app")} className="mt-2">Aller à l'accueil</Button>
+        </motion.div>
+      )}
+      {status === "error" && (
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center gap-4">
+          <AlertCircle className="w-20 h-20 text-red-500" />
+          <h2 className="text-xl font-black">Invitation invalide</h2>
+          <p className="text-sm text-muted-foreground">{errorMsg ?? "Ce lien d'invitation est expiré ou invalide."}</p>
+          <Button onClick={() => navigate("#/")} variant="outline">Retour à l'accueil</Button>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SWIPE CARD + SWIPE PAGE
+   ════════════════════════════════════════════════════════════════ */
+
+const SWIPE_THRESHOLD = 80;
+
+function SwipeCard({ exhibitor, onVote, onOpenSite, isTop, stackIndex }) {
+  const [expanded, setExpanded] = useState(false);
+  const [voteIndicator, setVoteIndicator] = useState(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const controls = useAnimation();
+
+  const rotate = useTransform(x, [-200, 0, 200], [-25, 0, 25]);
+  const likeOpacity = useTransform(x, [20, 80], [0, 1]);
+  const dislikeOpacity = useTransform(x, [-80, -20], [1, 0]);
+  const superlikeOpacity = useTransform(y, [-80, -20], [1, 0]);
+
+  const tags = (() => { try { return JSON.parse(exhibitor.thematicTags || "[]"); } catch { return []; } })();
+  const tier = TIER_CONFIG[exhibitor.tier] ?? TIER_CONFIG.C;
+  const description = exhibitor.description || exhibitor.shortDescription || "";
+  const isLongDesc = description.length > 180;
+
+  const handleDragEnd = async (_e, info) => {
+    const { offset, velocity } = info;
+    const swipeX = Math.abs(offset.x) > SWIPE_THRESHOLD || Math.abs(velocity.x) > 400;
+    const swipeUp = offset.y < -SWIPE_THRESHOLD || velocity.y < -400;
+    if (swipeUp) { await controls.start({ y: -700, opacity: 0, transition: { duration: 0.3 } }); onVote("superlike"); }
+    else if (swipeX && offset.x > 0) { await controls.start({ x: 700, opacity: 0, rotate: 20, transition: { duration: 0.3 } }); onVote("like"); }
+    else if (swipeX && offset.x < 0) { await controls.start({ x: -700, opacity: 0, rotate: -20, transition: { duration: 0.3 } }); onVote("dislike"); }
+    else { controls.start({ x: 0, y: 0, rotate: 0, transition: { type: "spring", stiffness: 300, damping: 20 } }); }
+  };
+
+  const handleButtonVote = async (type) => {
+    setVoteIndicator(type);
+    await new Promise(r => setTimeout(r, 150));
+    if (type === "like") await controls.start({ x: 700, opacity: 0, rotate: 20, transition: { duration: 0.35 } });
+    else if (type === "dislike") await controls.start({ x: -700, opacity: 0, rotate: -20, transition: { duration: 0.35 } });
+    else await controls.start({ y: -700, opacity: 0, transition: { duration: 0.35 } });
+    onVote(type);
+  };
+
+  if (!isTop) {
+    return (
+      <div className={`absolute inset-0 rounded-2xl bg-card border border-border shadow-md ${stackIndex === 1 ? "card-stack-1" : "card-stack-2"}`} style={{ zIndex: 10 - stackIndex }} />
+    );
+  }
+
+  return (
+    <motion.div className="absolute inset-0 swipe-card" style={{ x, y, rotate, zIndex: 20 }} drag dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }} dragElastic={0.8} onDragEnd={handleDragEnd} animate={controls} whileDrag={{ scale: 1.02 }}>
+      <motion.div className="absolute top-6 left-5 z-30 bg-green-500 text-white font-black text-xl px-4 py-2 rounded-xl rotate-[-15deg] border-4 border-white shadow-lg pointer-events-none" style={{ opacity: likeOpacity }}>LIKE ✅</motion.div>
+      <motion.div className="absolute top-6 right-5 z-30 bg-red-500 text-white font-black text-xl px-4 py-2 rounded-xl rotate-[15deg] border-4 border-white shadow-lg pointer-events-none" style={{ opacity: dislikeOpacity }}>NOPE ❌</motion.div>
+      <motion.div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 bg-blue-500 text-white font-black text-xl px-4 py-2 rounded-xl border-4 border-white shadow-lg pointer-events-none" style={{ opacity: superlikeOpacity }}>SUPER ⭐</motion.div>
+
+      <div className={`h-full rounded-2xl bg-card shadow-xl overflow-hidden flex flex-col border-2 ${voteIndicator === "like" ? "border-green-400" : voteIndicator === "superlike" ? "border-blue-400" : voteIndicator === "dislike" ? "border-red-400" : "border-border"}`}>
+        <div className="flex-shrink-0 relative bg-gradient-to-br from-primary/20 via-primary/10 to-accent/20 px-4 pt-4 pb-3">
+          <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border ${tier.bg} ${tier.text} ${tier.border}`}>{tier.label}</div>
+          <div className="mt-2 flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-black text-foreground leading-tight truncate">{exhibitor.name}</h2>
+              {exhibitor.stand && (<div className="flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" /><span className="text-xs text-muted-foreground">Stand {exhibitor.stand}</span></div>)}
+            </div>
+            {exhibitor.sodexoScore != null && (
+              <div className="flex-shrink-0 flex flex-col items-center bg-background/80 backdrop-blur-sm px-2.5 py-1.5 rounded-xl border border-border">
+                <span className="text-base font-black text-foreground leading-none">{exhibitor.sodexoScore}</span>
+                <span className="text-[10px] text-muted-foreground font-medium leading-none mt-0.5">/ 100</span>
+                <span className="text-[9px] text-amber-600 font-semibold uppercase tracking-wide mt-0.5">Sodexo</span>
+              </div>
+            )}
+          </div>
+          {tags.length > 0 && (
+            <div className="mt-2 flex gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
+              {tags.map((tag, i) => (<span key={i} className="flex-shrink-0 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium border border-primary/20 whitespace-nowrap">{tag}</span>))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-4 py-3 flex flex-col gap-3 min-h-0">
+          {description && (
+            <div>
+              <p className={`text-sm text-foreground/80 leading-relaxed ${!expanded && isLongDesc ? "line-clamp-4" : ""}`}>{description}</p>
+              {isLongDesc && (
+                <button className="mt-1 text-xs text-primary font-semibold flex items-center gap-0.5" onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}>
+                  {expanded ? <><ChevronUp className="w-3 h-3" /> Réduire</> : <><ChevronDown className="w-3 h-3" /> Lire la suite</>}
+                </button>
+              )}
+            </div>
+          )}
+          {exhibitor.sodexoReason && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <p className="text-xs font-semibold text-amber-800 mb-1">💡 Pertinence Sodexo</p>
+              <p className="text-xs text-amber-700 leading-relaxed line-clamp-3">{exhibitor.sodexoReason}</p>
+            </div>
+          )}
+          {exhibitor.website && (
+            <Button variant="outline" size="sm" className="w-full gap-2 text-xs" onClick={(e) => { e.stopPropagation(); onOpenSite(exhibitor.website); }}>
+              <Globe className="w-3.5 h-3.5" /> Voir le site <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
+            </Button>
+          )}
+        </div>
+
+        <div className="flex-shrink-0 px-4 py-3 border-t border-border bg-card/95">
+          <div className="flex items-center justify-between gap-3">
+            <button className="w-14 h-14 rounded-full bg-red-50 border-2 border-red-200 flex items-center justify-center shadow-md active:scale-90 transition-transform hover:bg-red-100 hover:border-red-300" onClick={() => handleButtonVote("dislike")}>
+              <X className="w-6 h-6 text-red-500" strokeWidth={3} />
+            </button>
+            <button className="w-12 h-12 rounded-full bg-blue-50 border-2 border-blue-200 flex items-center justify-center shadow-md active:scale-90 transition-transform hover:bg-blue-100 hover:border-blue-300" onClick={() => handleButtonVote("superlike")}>
+              <Star className="w-5 h-5 text-blue-500 fill-blue-500" />
+            </button>
+            <button className="w-14 h-14 rounded-full bg-green-50 border-2 border-green-200 flex items-center justify-center shadow-md active:scale-90 transition-transform hover:bg-green-100 hover:border-green-300" onClick={() => handleButtonVote("like")}>
+              <Heart className="w-6 h-6 text-green-500 fill-green-500" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function SwipePage({ eventId, eventName, onBack }) {
+  const { user } = useAuthCtx();
+  const totalForEvent = useMemo(() => db.getExhibitorsByEvent(eventId).length, [eventId]);
+  const [queue, setQueue] = useState(() => db.getSwipeQueue(user.id, eventId).queue);
+  const [totalSeen, setTotalSeen] = useState(() => totalForEvent - db.getSwipeQueue(user.id, eventId).queue.length);
+  const [lastVoted, setLastVoted] = useState(null);
+  const [siteUrl, setSiteUrl] = useState(null);
+
+  const handleVote = useCallback((voteType) => {
+    setQueue(q => {
+      if (q.length === 0) return q;
+      const current = q[0];
+      db.castVote(user.id, current.id, eventId, voteType);
+      setLastVoted({ exhibitor: current, voteType });
+      setTotalSeen(s => s + 1);
+      return q.slice(1);
+    });
+  }, [eventId, user.id]);
+
+  const handleUndo = useCallback(() => {
+    if (!lastVoted) return;
+    db.deleteVote(user.id, lastVoted.exhibitor.id);
+    setQueue(q => [lastVoted.exhibitor, ...q]);
+    setTotalSeen(s => Math.max(0, s - 1));
+    setLastVoted(null);
+  }, [lastVoted, user.id]);
+
+  const isDone = queue.length === 0;
+  const displayRemaining = Math.max(0, totalForEvent - totalSeen);
+  const progressPct = totalForEvent > 0 ? Math.min(100, Math.round((totalSeen / totalForEvent) * 100)) : 0;
+
+  if (isDone) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center">
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }}><CheckCircle2 className="w-20 h-20 text-green-500" /></motion.div>
+        <h2 className="text-2xl font-black">Tous les exposants vus !</h2>
+        <p className="text-muted-foreground text-sm">Vous avez évalué tous les exposants de {eventName}.</p>
+        <Button onClick={onBack} variant="outline">Retour aux événements</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm">
+        <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"><ChevronLeft className="w-4 h-4" /> Retour</button>
+        <div className="text-center">
+          <p className="text-xs font-semibold text-muted-foreground truncate max-w-[140px]">{eventName}</p>
+          <p className="text-xs text-muted-foreground font-medium">{displayRemaining} exposant{displayRemaining !== 1 ? "s" : ""} restant{displayRemaining !== 1 ? "s" : ""}</p>
+        </div>
+        <button onClick={handleUndo} disabled={!lastVoted} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors">
+          <RotateCcw className="w-4 h-4" /> Annuler
+        </button>
+      </div>
+
+      <div className="flex-shrink-0 h-1 bg-muted">
+        <motion.div className="h-full bg-primary" animate={{ width: `${Math.max(progressPct > 0 ? 2 : 0, progressPct)}%` }} transition={{ duration: 0.4 }} />
+      </div>
+
+      <div className="flex-1 relative p-4 pb-2 min-h-0">
+        <div className="relative h-full max-w-sm mx-auto">
+          <AnimatePresence>
+            {queue.slice(0, 3).map((exhibitor, index) => (
+              <SwipeCard key={exhibitor.id} exhibitor={exhibitor} onVote={handleVote} onOpenSite={setSiteUrl} isTop={index === 0} stackIndex={index} />
+            ))}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <div className="flex-shrink-0 flex justify-center gap-6 pb-3 text-xs text-muted-foreground">
+        <span>← Pas intéressé</span><span>↑ Super like</span><span>Intéressé →</span>
+      </div>
+
+      <AnimatePresence>{siteUrl && <SiteEmbedModal url={siteUrl} onClose={() => setSiteUrl(null)} />}</AnimatePresence>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TEAM VIEW
+   ════════════════════════════════════════════════════════════════ */
+
+function RankIcon({ rank }) {
+  if (rank === 1) return <Trophy className="w-4 h-4 text-amber-500" />;
+  if (rank === 2) return <Medal className="w-4 h-4 text-slate-400" />;
+  if (rank === 3) return <Award className="w-4 h-4 text-amber-700" />;
+  return <span className="w-4 h-4 flex items-center justify-center text-xs font-bold text-muted-foreground">#{rank}</span>;
+}
+
+function TeamView({ eventId, eventName, onBack }) {
+  const { user } = useAuthCtx();
+  const [filter, setFilter] = useState("all");
+  const [siteUrl, setSiteUrl] = useState(null);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+  const [version, setVersion] = useState(0);
+  const refresh = () => setVersion(v => v + 1);
+
+  const teamVotes = useMemo(() => db.getTeamVotes(eventId), [eventId, version]);
+  const stats = useMemo(() => db.getVoteStats(eventId), [eventId, version]);
+
+  const byExhibitor = {};
+  teamVotes.forEach(v => {
+    if (!v.exhibitor) return;
+    if (!byExhibitor[v.exhibitorId]) byExhibitor[v.exhibitorId] = { exhibitor: v.exhibitor, votes: [] };
+    byExhibitor[v.exhibitorId].votes.push(v);
+  });
+  const allGrouped = Object.values(byExhibitor).map(g => ({
+    ...g,
+    score: g.votes.reduce((s, v) => s + (v.voteType === "superlike" ? 3 : v.voteType === "like" ? 1 : -1), 0),
+    superlikeCount: g.votes.filter(v => v.voteType === "superlike").length,
+    likeCount: g.votes.filter(v => v.voteType === "like").length,
+    dislikeCount: g.votes.filter(v => v.voteType === "dislike").length,
+  })).sort((a, b) => b.score - a.score);
+
+  const filtered = filter === "all" ? allGrouped : allGrouped.filter(g => g.votes.some(v => v.voteType === filter));
+  const filterCounts = {
+    all: allGrouped.length,
+    superlike: allGrouped.filter(g => g.superlikeCount > 0).length,
+    like: allGrouped.filter(g => g.likeCount > 0).length,
+    dislike: allGrouped.filter(g => g.dislikeCount > 0).length,
+  };
+
+  const handleDeleteVote = (exhibitorId) => { db.deleteVote(user.id, exhibitorId); refresh(); };
+  const handleDeleteAll = () => { db.deleteAllVotes(user.id, eventId); setShowDeleteAllConfirm(false); refresh(); };
+
+  const handleExportClassement = () => {
+    if (allGrouped.length === 0) return;
+    const slug = (eventName ?? "salon").replace(/\s+/g, "-").toLowerCase();
+    const date = new Date().toLocaleDateString("fr-FR");
+    const totalVotes = allGrouped.reduce((s, g) => s + g.votes.length, 0);
+    const lines = [
+      `# Classement équipe — ${eventName ?? "Salon"}`, ``,
+      `**Exporté le** ${date} · **${allGrouped.length} exposants** · **${totalVotes} votes** au total`, ``,
+      `## Classement général`, ``,
+      `| Rang | Exposant | Stand | Tier | Score | ⭐ Super Likes | ✅ Likes | ❌ Pas intéressé |`,
+      `|------|----------|-------|------|-------|-------------|-------|----------------|`,
+      ...allGrouped.map((g, i) => {
+        const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+        return `| ${medal} | **${g.exhibitor.name}** | ${g.exhibitor.stand ?? "N/A"} | ${g.exhibitor.tier} | **${g.score}pts** | ${g.superlikeCount} | ${g.likeCount} | ${g.dislikeCount} |`;
+      }),
+      ``, `## Top 5 exposants`, ``,
+      ...allGrouped.slice(0, 5).map((g, i) => `${i + 1}. **${g.exhibitor.name}** (${g.score}pts) — Stand ${g.exhibitor.stand ?? "N/A"}, Tier ${g.exhibitor.tier}`),
+    ];
+    downloadMarkdown(lines.join("\n"), `classement-${slug}-${new Date().toISOString().split("T")[0]}.md`);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm">
+        <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ChevronLeft className="w-4 h-4" /> Retour</button>
+        <div className="text-center"><p className="text-sm font-bold">Vue Équipe</p>{eventName && <p className="text-xs text-muted-foreground">{eventName}</p>}</div>
+        <div className="flex items-center gap-2">
+          {showDeleteAllConfirm ? (
+            <div className="flex items-center gap-1">
+              <button onClick={handleDeleteAll} className="text-xs text-red-600 font-semibold hover:text-red-700">Confirmer</button>
+              <span className="text-muted-foreground text-xs">/</span>
+              <button onClick={() => setShowDeleteAllConfirm(false)} className="text-xs text-muted-foreground hover:text-foreground">Annuler</button>
+            </div>
+          ) : (
+            <button onClick={() => setShowDeleteAllConfirm(true)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-500 transition-colors" title="Supprimer tous mes votes"><Trash2 className="w-4 h-4" /></button>
+          )}
+          <button onClick={handleExportClassement} disabled={allGrouped.length === 0} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors" title="Exporter le classement"><Download className="w-4 h-4" /></button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto scrollbar-hide">
+        {stats && (
+          <div className="p-4 grid grid-cols-3 gap-2">
+            <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center"><p className="text-2xl font-black text-green-600">{stats.likes}</p><p className="text-xs text-green-700 font-medium">Likes</p></div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center"><p className="text-2xl font-black text-blue-600">{stats.superlikes}</p><p className="text-xs text-blue-700 font-medium">Super Likes</p></div>
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center"><p className="text-2xl font-black text-red-600">{stats.dislikes}</p><p className="text-xs text-red-700 font-medium">Pas intéressé</p></div>
+          </div>
+        )}
+
+        {stats?.byUser?.length > 0 && (
+          <div className="px-4 pb-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> Membres de l'équipe</p>
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+              {stats.byUser.map(u => (
+                <div key={u.userId} className="flex-shrink-0 bg-card border border-border rounded-xl p-3 min-w-[130px]">
+                  <p className="text-xs font-bold truncate">{u.userName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{u.total} votes</p>
+                  <div className="flex gap-2 mt-1.5"><span className="text-xs text-green-600 font-semibold">✅ {u.likes}</span><span className="text-xs text-blue-600 font-semibold">⭐ {u.superlikes}</span><span className="text-xs text-red-600 font-semibold">❌ {u.dislikes}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="px-4 pb-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1"><Trophy className="w-3.5 h-3.5 text-amber-500" /> Classement (⭐×3 + ✅×1 − ❌×1)</p></div>
+
+        <div className="px-4 pb-3">
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            {["all", "superlike", "like", "dislike"].map(f => (
+              <button key={f} onClick={() => setFilter(f)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${filter === f ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:border-primary/50"}`}>
+                {f === "all" ? `Tous (${filterCounts.all})` : f === "superlike" ? `⭐ Super Likes (${filterCounts.superlike})` : f === "like" ? `✅ Likes (${filterCounts.like})` : `❌ Pas intéressé (${filterCounts.dislike})`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center py-12 text-center px-8"><p className="text-4xl mb-3">🗳️</p><p className="font-bold text-foreground">Aucun vote pour l'instant</p><p className="text-sm text-muted-foreground mt-1">Les votes de l'équipe apparaîtront ici.</p></div>
+        ) : (
+          <div className="px-4 pb-6 space-y-2">
+            {filtered.map(({ exhibitor, votes: exVotes, score, superlikeCount, likeCount, dislikeCount }, i) => {
+              const tier = TIER_CONFIG[exhibitor.tier] ?? TIER_CONFIG.C;
+              const rank = allGrouped.findIndex(g => g.exhibitor.id === exhibitor.id) + 1;
+              return (
+                <motion.div key={exhibitor.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.025 }} className="bg-card border border-border rounded-2xl p-3.5 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 flex flex-col items-center gap-1 pt-0.5 w-8"><RankIcon rank={rank} /><span className="text-[10px] font-black text-muted-foreground leading-none">{score}pt</span></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${tier.bg} ${tier.text} ${tier.border}`}>{exhibitor.tier}</span>
+                        <h3 className="font-bold text-sm truncate">{exhibitor.name}</h3>
+                      </div>
+                      {exhibitor.stand && <p className="text-xs text-muted-foreground mb-1">Stand {exhibitor.stand}</p>}
+                      <p className="text-xs text-foreground/70 line-clamp-2 leading-relaxed">{exhibitor.shortDescription || exhibitor.description || ""}</p>
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                        {superlikeCount > 0 && <span className="flex items-center gap-0.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full"><Star className="w-3 h-3 fill-blue-600" /> {superlikeCount}</span>}
+                        {likeCount > 0 && <span className="flex items-center gap-0.5 text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full"><Heart className="w-3 h-3 fill-green-600" /> {likeCount}</span>}
+                        {dislikeCount > 0 && <span className="flex items-center gap-0.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full"><X className="w-3 h-3" strokeWidth={3} /> {dislikeCount}</span>}
+                        <div className="ml-auto flex gap-1">
+                          {exVotes.slice(0, 3).map((v, vi) => (<span key={vi} className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">{v.user?.name?.split(" ")[0] ?? "?"}</span>))}
+                          {exVotes.length > 3 && <span className="text-[10px] text-muted-foreground">+{exVotes.length - 3}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 flex flex-col gap-1.5">
+                      {exhibitor.website && (<button onClick={() => setSiteUrl(exhibitor.website)} className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center hover:bg-primary/10 transition-colors"><Globe className="w-4 h-4 text-muted-foreground" /></button>)}
+                      {exVotes.some(v => Number(v.userId) === user.id) && (
+                        <button onClick={() => handleDeleteVote(exhibitor.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors" title="Supprimer mon vote"><Trash2 className="w-3.5 h-3.5" /></button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <AnimatePresence>{siteUrl && <SiteEmbedModal url={siteUrl} onClose={() => setSiteUrl(null)} />}</AnimatePresence>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PLAN VIEW
+   ════════════════════════════════════════════════════════════════ */
+
+function standDistance(a, b) { const hallPenalty = a.hall !== b.hall ? 50 : 0; return Math.abs(a.num - b.num) + hallPenalty; }
+
+function optimizePath(exhibitors) {
+  if (exhibitors.length <= 2) return exhibitors;
+  const parsed = exhibitors.map(e => ({ ...e, _stand: parseStand(e.stand) }));
+  const halls = Array.from(new Set(parsed.map(e => e._stand.hall))).sort();
+  const result = [];
+  halls.forEach((hall, hi) => {
+    const inHall = parsed.filter(e => e._stand.hall === hall);
+    const sorted = inHall.sort((a, b) => a._stand.num - b._stand.num);
+    if (hi % 2 === 1) sorted.reverse();
+    result.push(...sorted);
+  });
+  return result;
+}
+
+function estimateTime(count) {
+  const totalMin = count * 15;
+  if (totalMin < 60) return `~${totalMin} min`;
+  const h = Math.floor(totalMin / 60); const m = totalMin % 60;
+  return m > 0 ? `~${h}h${m.toString().padStart(2, "0")}` : `~${h}h`;
+}
+
+function PlanView({ eventId, eventName, onBack }) {
+  const { user } = useAuthCtx();
+  const [selected, setSelected] = useState(null);
+  const [siteUrl, setSiteUrl] = useState(null);
+  const [showPath, setShowPath] = useState(false);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+  const [version, setVersion] = useState(0);
+  const refresh = () => setVersion(v => v + 1);
+
+  const myVotes = useMemo(() => db.getMyVotes(user.id, eventId), [eventId, user.id, version]);
+  const favorites = useMemo(() => myVotes
+    .filter(v => (v.voteType === "like" || v.voteType === "superlike") && v.exhibitor)
+    .sort((a, b) => (a.voteType === "superlike" ? 3 : 1) < (b.voteType === "superlike" ? 3 : 1) ? 1 : -1)
+    .map(v => ({ ...v.exhibitor, voteType: v.voteType })), [myVotes]);
+
+  useEffect(() => {
+    if (selected === null) setSelected(new Set(favorites.map(e => e.id)));
+  }, [favorites, selected]);
+
+  const selectedSet = selected ?? new Set();
+  const selectedList = favorites.filter(e => selectedSet.has(e.id));
+  const optimizedPath = useMemo(() => optimizePath(selectedList), [selectedList]);
+
+  const toggleSelect = (id) => {
+    setSelected(prev => { const next = new Set(prev ?? []); next.has(id) ? next.delete(id) : next.add(id); return next; });
+    setShowPath(false);
+  };
+  const selectAll = () => { setSelected(new Set(favorites.map(e => e.id))); setShowPath(false); };
+  const deselectAll = () => { setSelected(new Set()); setShowPath(false); };
+  const handleDeleteVote = (exhibitorId) => { db.deleteVote(user.id, exhibitorId); refresh(); };
+  const handleDeleteAll = () => { db.deleteAllVotes(user.id, eventId); setSelected(new Set()); setShowPath(false); setShowDeleteAllConfirm(false); refresh(); };
+
+  const handleExportPlan = () => {
+    const path = showPath ? optimizedPath : selectedList;
+    if (path.length === 0) return;
+    const slug = (eventName ?? "salon").replace(/\s+/g, "-").toLowerCase();
+    const date = new Date().toLocaleDateString("fr-FR");
+    const lines = [
+      `# Plan de visite — ${eventName ?? "Salon"}`, ``,
+      `**Exporté le** ${date} · **${path.length} stand${path.length > 1 ? "s" : ""}** · ${estimateTime(path.length)} estimé`, ``,
+      `## Itinéraire`, ``,
+      `| Étape | Exposant | Stand | Tier | Type de vote |`,
+      `|-------|----------|-------|------|--------------|`,
+      ...path.map((e, i) => `| ${i + 1} | **${e.name}** | ${e.stand ?? "N/A"} | ${e.tier} | ${e.voteType === "superlike" ? "⭐ Super Like" : "✅ Like"} |`),
+    ];
+    downloadMarkdown(lines.join("\n"), `plan-visite-${slug}-${new Date().toISOString().split("T")[0]}.md`);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm">
+        <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ChevronLeft className="w-4 h-4" /> Retour</button>
+        <div className="text-center"><p className="text-sm font-bold flex items-center gap-1.5"><Navigation className="w-4 h-4 text-primary" /> Planification</p>{eventName && <p className="text-xs text-muted-foreground">{eventName}</p>}</div>
+        {favorites.length > 0 ? (
+          showDeleteAllConfirm ? (
+            <div className="flex items-center gap-1">
+              <button onClick={handleDeleteAll} className="text-xs text-red-600 font-semibold hover:text-red-700">Confirmer</button>
+              <span className="text-muted-foreground text-xs">/</span>
+              <button onClick={() => setShowDeleteAllConfirm(false)} className="text-xs text-muted-foreground hover:text-foreground">Annuler</button>
+            </div>
+          ) : (<button onClick={() => setShowDeleteAllConfirm(true)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-500 transition-colors" title="Supprimer tous mes votes"><Trash2 className="w-4 h-4" /></button>)
+        ) : <div className="w-8" />}
+      </div>
+
+      {favorites.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
+          <div className="text-5xl">🗺️</div><h2 className="text-xl font-bold">Aucun favori</h2>
+          <p className="text-sm text-muted-foreground">Swipez les exposants et likez ceux qui vous intéressent pour construire votre plan de visite.</p>
+          <Button onClick={onBack} variant="outline">Aller swiper</Button>
+        </div>
+      ) : (
+        <>
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
+            {!showPath && (
+              <>
+                <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-foreground">{selectedSet.size} / {favorites.length} sélectionné{selectedSet.size > 1 ? "s" : ""}</p>
+                  <div className="flex gap-2">
+                    <button onClick={selectAll} className="text-xs text-primary font-semibold hover:underline">Tout sélectionner</button>
+                    <span className="text-muted-foreground">·</span>
+                    <button onClick={deselectAll} className="text-xs text-muted-foreground hover:text-foreground">Tout désélectionner</button>
+                  </div>
+                </div>
+                <div className="px-4 pb-4 space-y-2">
+                  {favorites.map((exhibitor, i) => {
+                    const isSelected = selectedSet.has(exhibitor.id);
+                    const tier = TIER_CONFIG[exhibitor.tier] ?? TIER_CONFIG.C;
+                    return (
+                      <motion.div key={exhibitor.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }} onClick={() => toggleSelect(exhibitor.id)}
+                        className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card opacity-60"}`}>
+                        <div className="flex-shrink-0">{isSelected ? <CheckSquare className="w-5 h-5 text-primary" /> : <Square className="w-5 h-5 text-muted-foreground" />}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${tier.bg} ${tier.text} ${tier.border}`}>{exhibitor.tier}</span>
+                            <span className="font-bold text-sm truncate">{exhibitor.name}</span>
+                          </div>
+                          {exhibitor.stand ? (<div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" /><span className="text-xs text-muted-foreground">Stand {exhibitor.stand}</span></div>) : (<span className="text-xs text-muted-foreground/60 italic">Stand non renseigné</span>)}
+                        </div>
+                        <div className="flex-shrink-0 flex items-center gap-2">
+                          {exhibitor.voteType === "superlike" ? <Star className="w-4 h-4 text-blue-500 fill-blue-500" /> : <Heart className="w-4 h-4 text-green-500 fill-green-500" />}
+                          <button onClick={e => { e.stopPropagation(); handleDeleteVote(exhibitor.id); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors" title="Supprimer ce vote"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {showPath && (
+              <>
+                <div className="px-4 pt-4 pb-3">
+                  <div className="bg-gradient-to-br from-primary/10 to-accent/20 border border-primary/20 rounded-2xl p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center"><Route className="w-5 h-5 text-primary" /></div>
+                      <div><p className="font-bold text-sm text-foreground">Chemin optimisé</p><p className="text-xs text-muted-foreground">{optimizedPath.length} stand{optimizedPath.length > 1 ? "s" : ""} · {estimateTime(optimizedPath.length)}</p></div>
+                      <div className="ml-auto flex items-center gap-1 text-xs text-muted-foreground"><Clock className="w-3.5 h-3.5" />{estimateTime(optimizedPath.length)}</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="px-4 pb-4 space-y-2">
+                  {optimizedPath.map((exhibitor, i) => {
+                    const tier = TIER_CONFIG[exhibitor.tier] ?? TIER_CONFIG.C;
+                    const isLast = i === optimizedPath.length - 1;
+                    return (
+                      <div key={exhibitor.id} className="relative">
+                        {!isLast && <div className="absolute left-[22px] top-[52px] w-0.5 h-4 bg-primary/20 z-0" />}
+                        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }} className="relative z-10 flex items-start gap-3 bg-card border border-border rounded-2xl p-3.5 shadow-sm">
+                          <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm ${i === 0 ? "bg-primary text-primary-foreground" : i === optimizedPath.length - 1 ? "bg-green-500 text-white" : "bg-primary/10 text-primary"}`}>
+                            {i === 0 ? "▶" : i === optimizedPath.length - 1 ? "✓" : i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${tier.bg} ${tier.text} ${tier.border}`}>{exhibitor.tier}</span>
+                              <span className="font-bold text-sm truncate">{exhibitor.name}</span>
+                            </div>
+                            {exhibitor.stand ? (<div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-primary flex-shrink-0" /><span className="text-xs font-semibold text-primary">Stand {exhibitor.stand}</span></div>) : (<span className="text-xs text-muted-foreground/60 italic">Stand non renseigné</span>)}
+                            {exhibitor.shortDescription && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{exhibitor.shortDescription}</p>}
+                          </div>
+                          <div className="flex-shrink-0 flex flex-col gap-1.5 items-end">
+                            {exhibitor.voteType === "superlike" ? <Star className="w-3.5 h-3.5 text-blue-500 fill-blue-500" /> : <Heart className="w-3.5 h-3.5 text-green-500 fill-green-500" />}
+                            {exhibitor.website && (<button onClick={() => setSiteUrl(exhibitor.website)} className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center hover:bg-primary/10 transition-colors"><Globe className="w-3.5 h-3.5 text-muted-foreground" /></button>)}
+                          </div>
+                        </motion.div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex-shrink-0 p-4 border-t border-border bg-card/95 space-y-2">
+            {!showPath ? (
+              <Button className="w-full gap-2" disabled={selectedSet.size === 0} onClick={() => setShowPath(true)}>
+                <Route className="w-4 h-4" /> Générer le chemin optimisé ({selectedSet.size} stands) <ArrowRightIcon className="w-4 h-4 ml-auto" />
+              </Button>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1 gap-2" onClick={() => setShowPath(false)}><RotateCcw className="w-4 h-4" /> Modifier</Button>
+                  <Button variant="outline" className="flex-1 gap-2" onClick={() => { setShowPath(false); setTimeout(() => setShowPath(true), 100); }}><Shuffle className="w-4 h-4" /> Recalculer</Button>
+                </div>
+                <Button variant="outline" className="w-full gap-2" onClick={handleExportPlan} disabled={optimizedPath.length === 0}><Download className="w-4 h-4" /> Exporter le plan de visite</Button>
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      <AnimatePresence>{siteUrl && <SiteEmbedModal url={siteUrl} onClose={() => setSiteUrl(null)} />}</AnimatePresence>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TEAM SETUP
+   ════════════════════════════════════════════════════════════════ */
+
+function TeamSetup({ eventId, eventName, onBack }) {
+  const { user } = useAuthCtx();
+  const [newTeamName, setNewTeamName] = useState("");
+  const [inviteUrl, setInviteUrl] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [mode, setMode] = useState("view");
+  const [version, setVersion] = useState(0);
+  const refresh = () => setVersion(v => v + 1);
+
+  const myTeam = useMemo(() => db.getMyTeam(user.id, eventId), [eventId, user.id, version]);
+  const allTeams = useMemo(() => db.getTeams(eventId), [eventId, version]);
+
+  const handleCreateTeam = () => {
+    if (!newTeamName.trim()) return;
+    db.createTeam(user.id, newTeamName.trim(), eventId);
+    toast.success("Équipe créée !");
+    setNewTeamName(""); setMode("view"); refresh();
+  };
+  const handleJoinTeam = (teamId) => {
+    db.joinTeam(user.id, teamId, eventId);
+    toast.success("Vous avez rejoint l'équipe !");
+    setMode("view"); refresh();
+  };
+  const handleCreateInvite = () => {
+    if (!myTeam) return;
+    const token = db.createInviteToken(user.id, myTeam.id);
+    setInviteUrl(`${window.location.origin}${window.location.pathname}#/join?token=${token}`);
+  };
+  const handleCopy = async () => {
+    if (!inviteUrl) return;
+    try { await navigator.clipboard.writeText(inviteUrl); } catch {}
+    setCopied(true); toast.success("Lien copié !");
+    setTimeout(() => setCopied(false), 2000);
+  };
+  const handleShareEmail = () => {
+    if (!inviteUrl) return;
+    const subject = encodeURIComponent(`Rejoins mon équipe sur SalonSwipe — ${eventName ?? ""}`);
+    const body = encodeURIComponent(`Bonjour,\n\nJe t'invite à rejoindre mon équipe sur SalonSwipe pour préparer notre visite du salon ${eventName ?? ""}.\n\nClique sur ce lien pour rejoindre :\n${inviteUrl}\n\nÀ bientôt !`);
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm">
+        <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ChevronLeft className="w-4 h-4" /> Retour</button>
+        <div className="text-center"><p className="text-sm font-bold flex items-center gap-1.5"><Users className="w-4 h-4 text-primary" /> Équipes</p>{eventName && <p className="text-xs text-muted-foreground">{eventName}</p>}</div>
+        <div className="w-16" />
+      </div>
+
+      <div className="flex-1 overflow-y-auto scrollbar-hide px-4 py-4 space-y-5">
+        {myTeam ? (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="bg-gradient-to-br from-primary/10 to-accent/20 border border-primary/20 rounded-2xl p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center"><Crown className="w-5 h-5 text-primary" /></div>
+                <div><p className="font-black text-base text-foreground">{myTeam.name}</p><p className="text-xs text-muted-foreground">Mon équipe · {myTeam.members?.length ?? 0} membre{(myTeam.members?.length ?? 0) > 1 ? "s" : ""}</p></div>
+              </div>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {(myTeam.members ?? []).map(m => (
+                  <div key={m.id} className="flex items-center gap-1.5 bg-white/60 border border-primary/20 rounded-full px-2.5 py-1">
+                    <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center"><span className="text-[10px] font-bold text-primary">{m.name?.charAt(0)?.toUpperCase() ?? "?"}</span></div>
+                    <span className="text-xs font-medium text-foreground">{m.name?.split(" ")[0] ?? "Anonyme"}</span>
+                  </div>
+                ))}
+              </div>
+              {!inviteUrl ? (
+                <Button size="sm" variant="outline" className="w-full gap-2 bg-white/60" onClick={handleCreateInvite}><Link2 className="w-4 h-4" /> Générer un lien d'invitation</Button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 bg-white/80 border border-border rounded-xl p-2.5">
+                    <p className="text-xs text-muted-foreground flex-1 truncate">{inviteUrl}</p>
+                    <button onClick={handleCopy} className="flex-shrink-0">{copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={handleCopy}>{copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />} Copier</Button>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={handleShareEmail}><Mail className="w-3.5 h-3.5" /> Envoyer par mail</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+              <p className="text-sm font-semibold text-amber-800 mb-1">Vous n'avez pas encore d'équipe</p>
+              <p className="text-xs text-amber-700">Créez une équipe ou rejoignez-en une pour partager vos votes.</p>
+            </div>
+          </motion.div>
+        )}
+
+        <AnimatePresence mode="wait">
+          {mode === "view" && (
+            <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-2 gap-3">
+              <button onClick={() => setMode("create")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><Plus className="w-5 h-5 text-primary" /></div>
+                <p className="text-xs font-bold text-foreground">Créer une équipe</p>
+              </button>
+              <button onClick={() => setMode("join")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-green-50 border border-green-200 flex items-center justify-center"><LogIn className="w-5 h-5 text-green-600" /></div>
+                <p className="text-xs font-bold text-foreground">Rejoindre</p>
+              </button>
+            </motion.div>
+          )}
+
+          {mode === "create" && (
+            <motion.div key="create" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+              <h3 className="font-bold text-sm text-foreground">Créer une nouvelle équipe</h3>
+              <input type="text" placeholder="Nom de l'équipe (ex: Équipe Achats)" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} maxLength={50}
+                className="w-full px-4 py-3 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setMode("view")}>Annuler</Button>
+                <Button className="flex-1 gap-2" disabled={!newTeamName.trim()} onClick={handleCreateTeam}><Plus className="w-4 h-4" /> Créer</Button>
+              </div>
+            </motion.div>
+          )}
+
+          {mode === "join" && (
+            <motion.div key="join" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+              <h3 className="font-bold text-sm text-foreground">Rejoindre une équipe</h3>
+              {allTeams.length === 0 ? (
+                <div className="text-center py-6"><p className="text-sm text-muted-foreground">Aucune équipe disponible pour cet événement.</p></div>
+              ) : (
+                <div className="space-y-2">
+                  {allTeams.map(team => (
+                    <div key={team.id} className={`flex items-center justify-between p-3.5 rounded-xl border-2 ${myTeam?.id === team.id ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><Users className="w-4 h-4 text-primary" /></div>
+                        <div><p className="font-semibold text-sm text-foreground">{team.name}</p></div>
+                      </div>
+                      {myTeam?.id === team.id ? (<span className="text-xs text-primary font-bold">Mon équipe</span>) : (
+                        <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => handleJoinTeam(team.id)}><UserPlus className="w-3.5 h-3.5" /> Rejoindre</Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button variant="outline" className="w-full" onClick={() => setMode("view")}>Retour</Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EVENT INFO MODAL
+   ════════════════════════════════════════════════════════════════ */
+
+function getNavLinks(location) {
+  const encoded = encodeURIComponent(location);
+  return [
+    { name: "Google Maps", icon: "🗺️", url: `https://www.google.com/maps/search/?api=1&query=${encoded}`, color: "bg-blue-50 border-blue-200 text-blue-700" },
+    { name: "Waze", icon: "🚗", url: `https://waze.com/ul?q=${encoded}&navigate=yes`, color: "bg-sky-50 border-sky-200 text-sky-700" },
+    { name: "Apple Plans", icon: "🍎", url: `maps://maps.apple.com/?q=${encoded}`, color: "bg-gray-50 border-gray-200 text-gray-700" },
+    { name: "Maps (web)", icon: "📍", url: `https://maps.apple.com/?q=${encoded}`, color: "bg-orange-50 border-orange-200 text-orange-700" },
+  ];
+}
+
+function EventInfoModal({ event, onClose }) {
+  if (!event) return null;
+  const navLinks = event.location ? getNavLinks(event.location) : [];
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end justify-center" onClick={onClose}>
+      <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="w-full max-w-sm bg-card rounded-t-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-muted-foreground/20" /></div>
+        <div className="mx-4 rounded-2xl p-4 mb-4 text-white" style={{ backgroundColor: event.color ?? "#2C3E7A" }}>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h2 className="text-xl font-black leading-tight">{event.name}</h2>
+              {event.location && (<div className="flex items-center gap-1.5 mt-1.5"><MapPin className="w-3.5 h-3.5 opacity-80 flex-shrink-0" /><p className="text-sm opacity-90">{event.location}</p></div>)}
+              {event.startDate && (<div className="flex items-center gap-1.5 mt-1"><Calendar className="w-3.5 h-3.5 opacity-80 flex-shrink-0" /><p className="text-sm opacity-90">{event.startDate}{event.endDate && event.endDate !== event.startDate ? ` → ${event.endDate}` : ""}</p></div>)}
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 ml-2"><X className="w-4 h-4" /></button>
+          </div>
+        </div>
+        <div className="px-4 pb-6 space-y-4">
+          {event.description && (<div><h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">À propos</h3><p className="text-sm text-foreground leading-relaxed">{event.description}</p></div>)}
+          {event.location && (
+            <div>
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5"><Navigation className="w-3.5 h-3.5" /> Ouvrir dans</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {navLinks.map(link => (
+                  <a key={link.name} href={link.url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-opacity hover:opacity-80 ${link.color}`}>
+                    <span className="text-base">{link.icon}</span><span>{link.name}</span><ExternalLink className="w-3 h-3 ml-auto opacity-60" />
+                  </a>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-2 text-center">{event.location}</p>
+            </div>
+          )}
+          <Button variant="outline" className="w-full" onClick={onClose}>Fermer</Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   AI CHAT BOT
+   ════════════════════════════════════════════════════════════════ */
+
+const SUGGESTED_PROMPTS = [
+  { icon: "🏆", label: "Top exposants", prompt: "Quels sont les exposants les mieux notés par l'équipe ?" },
+  { icon: "📊", label: "Tendances", prompt: "Quelles sont les grandes tendances des votes de l'équipe ?" },
+  { icon: "⭐", label: "Mes super likes", prompt: "Quels exposants ai-je mis en super like ?" },
+  { icon: "🏷️", label: "Par tier", prompt: "Comment se répartissent les votes par tier (A, B, C, D) ?" },
+  { icon: "🤝", label: "Consensus", prompt: "Sur quels exposants l'équipe est-elle la plus unanime ?" },
+  { icon: "💡", label: "Recommandations", prompt: "Quels exposants devrais-je prioriser lors de ma visite ?" },
+  { icon: "📈", label: "Statistiques", prompt: "Donne-moi un résumé statistique des votes." },
+  { icon: "🔍", label: "Secteurs", prompt: "Quels secteurs d'activité ont le plus de votes positifs ?" },
+  { icon: "📝", label: "Rapport complet", prompt: "Génère un rapport complet d'analyse des votes de l'équipe pour ce salon, avec classement, tendances, consensus et recommandations. Formate-le en Markdown avec des sections claires." },
+  { icon: "🗺️", label: "Rapport visite", prompt: "Génère un rapport de préparation de visite avec les exposants prioritaires à voir en premier, organisés par hall si possible. Formate-le en Markdown." },
+];
+
+function AIChatBot({ eventId, eventName, onClose }) {
+  const { user } = useAuthCtx();
+  const [messages, setMessages] = useState([
+    { role: "assistant", content: `Bonjour ! Je suis votre assistant d'analyse pour ${eventName ?? "ce salon"}. Je peux analyser les votes, identifier les tendances, et **générer des rapports exportables en Markdown**. Utilisez les suggestions ci-dessous ou posez votre question.` },
+  ]);
+  const [input, setInput] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  const [pending, setPending] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const handleSend = (text) => {
+    const message = (text ?? input).trim();
+    if (!message || pending) return;
+    setMessages(prev => [...prev, { role: "user", content: message }]);
+    setInput(""); setShowSuggestions(false); setPending(true);
+    setTimeout(() => {
+      const reply = AI.answer(message, eventId, eventName, user.id);
+      setMessages(prev => [...prev, { role: "assistant", content: reply, isReport: isMarkdownReport(reply) }]);
+      setPending(false);
+    }, 550);
+  };
+
+  const handleKeyDown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } };
+  const handleExportMessage = (content, index) => {
+    const slug = (eventName ?? "salon").replace(/\s+/g, "-").toLowerCase();
+    const date = new Date().toISOString().split("T")[0];
+    const fullContent = content.startsWith("#") ? content : `# Rapport IA — ${eventName ?? "Salon"}\n\n*Généré le ${new Date().toLocaleDateString("fr-FR")}*\n\n${content}`;
+    downloadMarkdown(fullContent, `rapport-ia-${slug}-${date}-${index}.md`);
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end justify-center" onClick={onClose}>
+      <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="w-full max-w-sm bg-card rounded-t-3xl shadow-2xl flex flex-col" style={{ maxHeight: "85vh" }} onClick={e => e.stopPropagation()}>
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0"><div className="w-10 h-1 rounded-full bg-muted-foreground/20" /></div>
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center"><Bot className="w-4 h-4 text-white" /></div>
+            <div><p className="font-bold text-sm text-foreground flex items-center gap-1">Assistant IA <Sparkles className="w-3.5 h-3.5 text-primary" /></p><p className="text-xs text-muted-foreground">Analyse locale · Rapports exportables</p></div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center"><X className="w-4 h-4 text-muted-foreground" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-4 py-3 space-y-3 min-h-0">
+          {messages.map((msg, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              {msg.role === "assistant" && (<div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5"><Bot className="w-3.5 h-3.5 text-primary" /></div>)}
+              <div className="max-w-[80%] flex flex-col gap-1.5">
+                <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.role === "user" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"}`}>{msg.content}</div>
+                {msg.role === "assistant" && msg.isReport && (
+                  <button onClick={() => handleExportMessage(msg.content, i)} className="flex items-center gap-1.5 self-start px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-xs font-medium text-primary hover:bg-primary/20 transition-colors">
+                    <Download className="w-3 h-3" /> Exporter en Markdown
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          ))}
+          {pending && (
+            <div className="flex justify-start">
+              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5"><Bot className="w-3.5 h-3.5 text-primary" /></div>
+              <div className="bg-muted px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <AnimatePresence>
+          {showSuggestions && messages.length <= 1 && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex-shrink-0 px-4 pb-2">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1"><FileText className="w-3 h-3" /> Suggestions & rapports</p>
+                <button onClick={() => setShowSuggestions(false)} className="text-muted-foreground"><ChevronDown className="w-3.5 h-3.5" /></button>
+              </div>
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                {SUGGESTED_PROMPTS.map((s, i) => (
+                  <button key={i} onClick={() => handleSend(s.prompt)} className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary hover:bg-primary/20 transition-colors">
+                    <span>{s.icon}</span><span>{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex-shrink-0 px-4 pb-6 pt-2 border-t border-border">
+          <div className="flex items-center gap-2 bg-muted rounded-2xl px-3 py-2">
+            <input type="text" placeholder="Posez votre question ou demandez un rapport..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
+              className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground" disabled={pending} />
+            <button onClick={() => handleSend()} disabled={!input.trim() || pending} className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center disabled:opacity-40 transition-opacity">
+              {pending ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   HOME (dashboard shell)
+   ════════════════════════════════════════════════════════════════ */
+
+function Home() {
+  const { user, logout } = useAuthCtx();
+  const [view, setView] = useState("home");
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [showEventInfo, setShowEventInfo] = useState(false);
+  const [showChatBot, setShowChatBot] = useState(false);
+  const [version, setVersion] = useState(0);
+
+  const events = db.getEvents();
+  const myStats = selectedEvent ? db.getVoteStats(selectedEvent.id) : null;
+
+  const handleExport = () => {
+    if (!selectedEvent) return;
+    const result = db.exportCsv(user.id, selectedEvent.id, "mine");
+    if (result.count === 0) { toast.error("Aucun vote à exporter"); return; }
+    downloadCsv(result.csv, `votes-${selectedEvent.name}-${new Date().toISOString().split("T")[0]}.csv`);
+    toast.success(`${result.count} votes exportés !`);
+  };
+
+  const pickEvent = (event) => setSelectedEvent({
+    id: event.id, name: event.name, color: event.color ?? "#2C3E7A", slug: event.slug,
+    location: event.location, startDate: event.startDate, endDate: event.endDate, description: event.description,
+  });
+
+  if (view === "swipe" && selectedEvent) return (<div className="h-screen flex flex-col max-w-sm mx-auto"><SwipePage eventId={selectedEvent.id} eventName={selectedEvent.name} onBack={() => { setView("home"); setVersion(v => v + 1); }} /></div>);
+  if (view === "team") return (<div className="h-screen flex flex-col max-w-sm mx-auto"><TeamView eventId={selectedEvent?.id} eventName={selectedEvent?.name} onBack={() => { setView("home"); setVersion(v => v + 1); }} /></div>);
+  if (view === "plan") return (<div className="h-screen flex flex-col max-w-sm mx-auto"><PlanView eventId={selectedEvent?.id} eventName={selectedEvent?.name} onBack={() => { setView("home"); setVersion(v => v + 1); }} /></div>);
+  if (view === "teamsetup" && selectedEvent) return (<div className="h-screen flex flex-col max-w-sm mx-auto"><TeamSetup eventId={selectedEvent.id} eventName={selectedEvent.name} onBack={() => { setView("home"); setVersion(v => v + 1); }} /></div>);
+
+  return (
+    <div className="min-h-screen max-w-sm mx-auto flex flex-col">
+      <div className="flex-shrink-0 px-4 pt-12 pb-6">
+        <div className="flex items-center justify-between mb-8">
+          <div><h1 className="text-3xl font-black text-foreground tracking-tight">Salon<span className="text-primary">Swipe</span></h1><p className="text-sm text-muted-foreground mt-0.5">Préparez vos salons pro</p></div>
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center"><span className="text-sm font-bold text-primary">{user?.name?.charAt(0)?.toUpperCase() ?? "?"}</span></div>
+            <button onClick={() => { logout(); navigate("#/"); }} className="text-muted-foreground hover:text-foreground"><LogOut className="w-4 h-4" /></button>
+          </div>
+        </div>
+
+        {user && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-primary/10 to-accent/20 border border-primary/20 rounded-2xl p-4 mb-6">
+            <p className="text-sm font-semibold text-foreground">Bonjour, {user.name?.split(" ")[0]} 👋</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Prêt à découvrir les exposants ?</p>
+          </motion.div>
+        )}
+      </div>
+
+      <div className="flex-1 px-4 pb-8 space-y-6">
+        <div>
+          <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Événements disponibles</h2>
+          <div className="space-y-3">
+            {events.map((event, i) => (
+              <motion.div key={event.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
+                <div className={`rounded-2xl border-2 p-4 cursor-pointer transition-all ${selectedEvent?.id === event.id ? "border-primary bg-primary/5 shadow-md" : "border-border bg-card hover:border-primary/40 hover:shadow-sm"}`} onClick={() => pickEvent(event)}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg flex-shrink-0" style={{ backgroundColor: event.color ?? "#2C3E7A" }}>{event.name.charAt(0)}</div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-sm text-foreground">{event.name}</h3>
+                      {event.location && <p className="text-xs text-muted-foreground mt-0.5">📍 {event.location}</p>}
+                      {event.startDate && <p className="text-xs text-muted-foreground">📅 {event.startDate}{event.endDate && event.endDate !== event.startDate ? ` → ${event.endDate}` : ""}</p>}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {selectedEvent?.id === event.id && (<div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center"><span className="text-white text-xs">✓</span></div>)}
+                      <button onClick={e => { e.stopPropagation(); pickEvent(event); setShowEventInfo(true); }} className="w-7 h-7 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors"><Info className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {selectedEvent && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide">Actions — {selectedEvent.name.split(" ")[0]}</h2>
+
+            <button onClick={() => setView("swipe")} className="w-full flex items-center gap-4 p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg active:scale-98 transition-transform">
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center"><Zap className="w-5 h-5" /></div>
+              <div className="text-left"><p className="font-bold text-sm">Swiper les exposants</p><p className="text-xs opacity-80">Évaluez chaque exposant rapidement</p></div>
+              <span className="ml-auto text-xl">→</span>
+            </button>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => setView("team")} className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center"><Users className="w-4.5 h-4.5 text-primary" /></div>
+                <div><p className="font-bold text-xs text-foreground">Vue équipe</p><p className="text-[11px] text-muted-foreground">Classement votes</p></div>
+              </button>
+              <button onClick={() => setView("plan")} className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center"><Navigation className="w-4.5 h-4.5 text-emerald-600" /></div>
+                <div><p className="font-bold text-xs text-foreground">Planifier</p><p className="text-[11px] text-muted-foreground">Chemin optimisé</p></div>
+              </button>
+              <button onClick={() => setView("teamsetup")} className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all">
+                <div className="w-9 h-9 rounded-xl bg-violet-50 border border-violet-200 flex items-center justify-center"><UserPlus className="w-4.5 h-4.5 text-violet-600" /></div>
+                <div><p className="font-bold text-xs text-foreground">Équipes</p><p className="text-[11px] text-muted-foreground">Inviter des collègues</p></div>
+              </button>
+              <button onClick={() => setShowChatBot(true)} className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border-2 border-border hover:border-primary/40 transition-all">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-accent/30 flex items-center justify-center"><Bot className="w-4.5 h-4.5 text-primary" /></div>
+                <div><p className="font-bold text-xs text-foreground">Assistant IA</p><p className="text-[11px] text-muted-foreground">Analyse des votes</p></div>
+              </button>
+            </div>
+
+            <button onClick={handleExport} className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-muted/50 border border-border hover:border-primary/30 transition-all">
+              <div className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center"><Download className="w-4 h-4 text-muted-foreground" /></div>
+              <div className="text-left"><p className="font-semibold text-xs text-foreground">Exporter mes votes</p><p className="text-[11px] text-muted-foreground">Télécharger en CSV</p></div>
+              <span className="ml-auto text-xs text-muted-foreground">CSV</span>
+            </button>
+
+            {myStats && (myStats.likes + myStats.superlikes + myStats.dislikes) > 0 && (
+              <div className="bg-muted/50 rounded-2xl p-4">
+                <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1"><BarChart3 className="w-3.5 h-3.5" /> Vos votes sur {selectedEvent.name.split(" ")[0]}</p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div><p className="text-xl font-black text-green-600">{myStats.likes}</p><p className="text-xs text-muted-foreground">Likes</p></div>
+                  <div><p className="text-xl font-black text-blue-600">{myStats.superlikes}</p><p className="text-xs text-muted-foreground">Super Likes</p></div>
+                  <div><p className="text-xl font-black text-red-600">{myStats.dislikes}</p><p className="text-xs text-muted-foreground">Skips</p></div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {!selectedEvent && (<div className="text-center py-4"><p className="text-sm text-muted-foreground">👆 Sélectionnez un événement pour commencer</p></div>)}
+      </div>
+
+      <AnimatePresence>{showEventInfo && selectedEvent && <EventInfoModal event={selectedEvent} onClose={() => setShowEventInfo(false)} />}</AnimatePresence>
+      <AnimatePresence>{showChatBot && <AIChatBot eventId={selectedEvent?.id} eventName={selectedEvent?.name} onClose={() => setShowChatBot(false)} />}</AnimatePresence>
+    </div>
+  );
+}
+
+function ProtectedApp() {
+  const { isAuthenticated } = useAuthCtx();
+  useEffect(() => { if (!isAuthenticated) navigate("#/login"); }, [isAuthenticated]);
+  if (!isAuthenticated) return null;
+  return <Home />;
+}
+
+function NotFoundPage() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center p-8">
+      <h2 className="text-2xl font-black">Page introuvable</h2>
+      <Button onClick={() => navigate("#/")}>Retour à l'accueil</Button>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ROOT + ROUTER
+   ════════════════════════════════════════════════════════════════ */
+
+function Root() {
+  const [user, setUserState] = useState(() => Auth.getUser());
+  const login = (u) => { Auth.login(u); setUserState(u); };
+  const logout = () => { Auth.logout(); setUserState(null); };
+  const authValue = { user, isAuthenticated: !!user, login, logout };
+
+  const hash = useHashRoute();
+  const withoutHash = hash.replace(/^#/, "") || "/";
+  const [path, queryStr] = withoutHash.split("?");
+
+  let page;
+  if (path === "/") page = <Landing />;
+  else if (path === "/login") page = <Login />;
+  else if (path === "/join") page = <JoinTeam query={queryStr} />;
+  else if (path === "/app") page = <ProtectedApp />;
+  else page = <NotFoundPage />;
+
+  return (
+    <AuthContext.Provider value={authValue}>
+      <Toaster />
+      {page}
+    </AuthContext.Provider>
+  );
+}
+
+seedIfNeeded();
+const root = createRoot(document.getElementById("root"));
+root.render(<Root />);
+  </script>
+</body>
+</html>
